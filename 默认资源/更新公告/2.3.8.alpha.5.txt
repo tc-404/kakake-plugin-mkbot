@@ -1,0 +1,29 @@
+2.3.8.alpha.5 [url2:https://xunyunxiaoxiao.lanzn.com/iwlEE4411l3a]
+2026-08-22 13:45:00
+【新增】【1】 音乐签名三档（随框架 / 繁华 / CZ）
+【新增】【2】 点歌列表 Sharp 图片输出
+
+ ↓［详细数据］↓
+ 【1】
+ - WebUI「基础设置」原「第三方音乐签名接口」开关改为三按钮：随框架、繁华、CZ（等宽铺满，点即切换保存）
+ - 随框架（默认）：走协议端原生 music 段（发音乐卡片）
+ - 繁华：第三方 s01s music_ark 签 JSON 卡片（原「音乐接口」开启时的行为）
+ - CZ：本地子 API lib/api/music-sign.mjs 调 CZ 上游签 QQ 音乐 Ark（不带 key）
+ - 点歌「卡片选歌 / 卡片播放收藏 / 测试音乐接口」统一走 mkSendMusicBySignMode；繁华/CZ 失败回退随框架
+ - 配置键「音乐签名」；旧布尔「音乐接口」仍可读（true→繁华，false→随框架）
+ - 搜 function mkSendMusicBySignMode
+ - 搜 function mkResolveMusicSignMode
+ - 搜 export async function sign
+ - 搜 lib/api/music-sign
+
+ 【2】
+ - 开启「图片渲染」且「渲染模式=sharp」时，点歌搜索列表改为 Sharp 图片卡片（网易云 / 酷我 / QQ 三源）
+ - 每行顺序：序号 → 封面 → 歌名 / 歌手；列表最多 20 条（与接口返回上限一致）
+ - 封面取自列表接口字段（网易云 picurl、酷我 picture、QQ cover）；单张下载失败则用机器人头像兜底
+ - 默认背景运势6.png；WebUI「背景修改」新增「点歌列表」槽位，支持自定义背景
+ - 拉封面 / 机器人头像 / Sharp 合成均在 sharp-worker 分支完成，不占主进程；整页失败回退原文字列表
+ - HTML 渲染模式或关闭图片渲染时仍为原文字列表，不发图
+ - 搜 renderMusicListWithSharp
+ - 搜 music-list-sharp-render
+ - 搜 BG_EDIT_SLOTS music-list
+ - 搜 if(message.match(/^(酷我|网易云|QQ|)点歌

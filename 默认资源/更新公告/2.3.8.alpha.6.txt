@@ -1,0 +1,39 @@
+2.3.8.alpha.6 [url2:https://xunyunxiaoxiao.lanzn.com/iAvcv446a16h]
+2026-08-23 13:00:00
+【新增】【1】 入群欢迎 Sharp 版支持自定义背景
+【新增】【2】 Sharp 渲染新增自定义模糊度、暗度、全局字体颜色
+【新增】【3】 未授权回复开关及自定义内容
+【优化】【4】 美化 WebUI 置顶栏 UI
+
+ ↓［详细数据］↓
+ 【1】
+ - Sharp 模式下入群欢迎/入群身份卡走 renderJoinIdentityWithSharp；支持 resolveEffectiveBgAbs('join-identity') 读取自定义背景
+ - WebUI「背景修改」槽位含「入群身份」（BG_EDIT_SLOTS 中 join-identity）
+ - 自定义背景失败时回退默认底色；整页失败可回退 HTML 入群身份卡
+ - 搜 renderJoinIdentityWithSharp
+ - 搜 join-identity-sharp-render
+ - 搜 resolveEffectiveBgAbs('join-identity')
+
+ 【2】
+ - 配置键：Sharp背景暗度（0~100，默认 40）、Sharp背景模糊（0~30）、Sharp全局字体色（# 十六进制，留空为各图默认配色）
+ - WebUI「进阶设置 → 渲染开关」在 Sharp 模式下可调三项；暗度/模糊即时保存，字体色为色块 + 十六进制输入 + 清空
+ - 作用于带自定义照片背景的 Sharp 卡片（菜单、运势、运行状态、钱包、鱼篓、点歌列表、入群身份、API 界面等）；签到/商店 Sharp 保持各自默认字色
+ - 搜 sharp-bg-effects.ts
+ - 搜 sharp-text-color.ts
+ - 搜 resolveSharpTextFill
+ - 搜 loadSharpBgEffectsFromDataPath
+
+ 【3】
+ - 配置键：noauth（开关）、noauthnr（自定义文案）；NapCat 配置面板同步注册
+ - WebUI「基础设置 → 身份权限」：未授权回复开关 + 内容输入框
+ - 未授权群/私聊触发功能时，开关开启则发送自定义文案
+ - 搜 sendUnauthReplyIfEnabled
+ - 搜 requireAuthorized
+ - 搜 noauth / noauthnr
+
+ 【4】
+ - 顶栏 mk-header__title 显示「MKbot 插件 - {页面名}」（updateHeaderPageTitle）
+ - 各页面卡片内大标题收敛，避免与顶栏重复；主题切换行布局适配（含窄屏 order 调整）
+ - 搜 updateHeaderPageTitle
+ - 搜 mk-header__title
+ - 搜 admin.html 顶栏与进阶设置相关样式

@@ -1,0 +1,11 @@
+{
+  "name": "kakake-plugin-mkbot",
+  "runtime": "mkbot",
+  "displayName": "MKbot",
+  "author": "三个句号",
+  "version": "2.3.9.alpha.2",
+  "loader": "MKcc",
+  "entry": "index.mjs",
+  "compat_layer": "MKcc",
+  "icon": "assets/chajian.png"
+}

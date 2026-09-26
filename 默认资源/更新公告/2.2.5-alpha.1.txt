@@ -1,0 +1,30 @@
+2.2.5-alpha.1 [url:https://xunyunxiaoxiao.lanzn.com/igCSL3mi9f6j]
+2026-04-05 16:30:00
+【优化】【1】 我的信息
+【新增】【2】 发卡系统
+  
+ ↓［详细数据］↓
+ 【1】
+ - 搜 if(message == "我的货币" || message == "我的归笺" || message == "我的信息"){
+ - 新增了支持图片输出的个人信息
+ 
+ 【2】
+ - 搜 if (message === "发卡系统") {
+ - 搜 if(message.match(/^添加发卡商品([\s\S]*)/)){
+ - 搜 if(message.match(/^修改发卡商品([\s\S]*?)->([\s\S]*)$/)){
+ - 搜 if (message.startsWith("填充发卡商品")) {
+ - 搜 if (message.match(/^清空发卡商品([\s\S]*)/)) {
+ - 搜 if (message.startsWith("删除发卡商品")) {
+ - 搜 if (message.match(/^发卡商品定价\s+/)) {
+ - 搜 if (message === "发卡商店" || message.trim() === "发卡商店") {
+ - 搜 if (message.match(/^兑换商品\s+/)) {
+ - 搜 if (message === "查看商品列表" || message.trim() === "查看商品列表") {
+ - 搜 if (/^发卡商品上架/.test(message)) { 或 if (/^发卡商品下架/.test(message)) {
+ - 依次为：
+ - 发卡菜单 -> 添加商品 -> 修改商品名称 
+ - 填充商品数量 -> 清空商品全部 -> 单删商品数量
+ - 定义商品价格 -> 查看发卡商店 -> 兑换
+ - 查看内容列表(最高管理员) -> 上下架商品
+ - 使用货币为“归笺”
+ 
+ 

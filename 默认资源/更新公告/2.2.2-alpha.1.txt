@@ -1,0 +1,8 @@
+2.2.2-alpha.1 [url:https://xunyunxiaoxiao.lanzn.com/iMjpv3kjph8d]
+2026-03-13 21:23:00
+【修复】【1】 机器人被拍
+ 
+ ↓［详细数据］↓
+ 【1】
+ 第8069行写错变量名了
+ 

@@ -1,0 +1,20 @@
+2.3.1 [url:https://xunyunxiaoxiao.lanzn.com/iX2iD3pjymuj]
+2026-05-16 07:40:00
+【新增】【1】 视频解析：快手
+【优化】【2】 签到：图片版
+【修复】【3】 音乐：酷我接口
+
+ ↓［详细数据］↓
+ 【1】
+ - 搜 const 快手链接 = 链接扫描文本.match(/https?:\/\/v\.kuaishou\.com\/[a-zA-Z0-9]+/i)?.[0];
+ - 即可找到匹配
+ - github上随便找的API，不保证稳定
+ 
+ 【2】
+ - 优化了「签到.html」文件的ui排版
+ 
+ 【3】
+ - 酷我音源改用 https://oiapi.net/api/Kuwo 接口
+ 
+ 
+ 
