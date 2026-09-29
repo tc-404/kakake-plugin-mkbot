@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>个人展示页</title>
+    <!-- 引入具有手写感的中文字体 -->
+    <link href="https://fonts.googleapis.com/css2?family=Ma+Shan+Zheng&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body, html {
+            width: 100%;
+            height: 100%;
+            overflow: hidden; /* 严禁滚动 */
+            background-color: #fff;
+            font-family: 'Ma Shan Zheng', cursive; /* 使用手写艺术字体 */
+        }
+
+        /* 主容器：铺满屏幕并拥有随机色大边框 */
+        .container {
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            border: 20px solid #a6e22e; /* 初始边框色，将被JS替换 */
+            padding: 6vh;
+            transition: border-color 1s ease;
+        }
+
+        /* 左侧：头像显示区 */
+        .left-section {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            max-width: 45%; 
+        }
+
+        .avatar-box {
+            width: 85%; 
+            aspect-ratio: 1 / 1;
+            overflow: hidden;
+            border-radius: 45px; /* 正方形圆角 */
+            
+            /* --- 增强层次感的阴影设计 --- */
+            /* 第一层：深处大范围柔和阴影，模拟远距光照 */
+            /* 第二层：近处稍暗阴影，增加物体边缘厚度感 */
+            box-shadow: 
+                0 30px 60px rgba(0, 0, 0, 0.2), 
+                0 15px 20px rgba(0, 0, 0, 0.1);
+            
+            /* 轻微的边框，让图片边缘更清晰 */
+            border: 4px solid #fff;
+        }
+
+        .avatar-box img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+        }
+
+        /* 右侧：文字内容展示区 */
+        .right-section {
+            flex: 1.2;
+            padding-left: 6vw;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+
+        .info-row {
+            display: flex;
+            align-items: center;
+            margin-bottom: 1.4vh;
+            font-size: 4.5vh; /* 适配大屏幕的超大字号 */
+            color: #333;
+            letter-spacing: 2px;
+        }
+
+        .label {
+            min-width: 170px;
+            color: #4c8a51; /* 墨绿色标签，更具复古手写感 */
+        }
+
+        .value {
+            color: #1a1a1a;
+            font-weight: 500;
+        }
+
+        .nickname-container .search-icon {
+            margin-left: 20px;
+            font-size: 4vh;
+            filter: sepia(1) saturate(5) hue-rotate(85deg);
+        }
+
+        .level-icons {
+            font-size: 3.8vh;
+            letter-spacing: 10px;
+        }
+
+    </style>
+</head>
+<body>
+
+<div class="container" id="mainContainer">
+    <!-- 左边头像：带有增强阴影 -->
+    <div class="left-section">
+        <div class="avatar-box">
+            <img src="https://q4.qlogo.cn/g?b=qq&nk={{qq}}&s=5" alt="Avatar">
+        </div>
+    </div>
+
+    <!-- 右边内容区域 -->
+    <div class="right-section">
+        <div class="info-row">
+            <span class="label">QQ号：</span>
+            <span class="value">{{qq}}</span>
+        </div>
+        <div class="info-row nickname-container">
+            <span class="label">昵称：</span>
+            <span class="value">{{name}}</span>
+        </div>
+        <div class="info-row">
+            <span class="label">性别：</span>
+            <span class="value">{{sex}}</span>
+        </div>
+        <div class="info-row">
+            <span class="label">生日：</span>
+            <span class="value">{{rrrr}}</span>
+        </div>
+        <div class="info-row">
+            <span class="label">年龄：</span>
+            <span class="value">{{age}}岁</span>
+        </div>
+        <div class="info-row">
+            <span class="label">QQ等级：</span>
+            <span class="value level-icons">{{denji}}级</span>
+        </div>
+        <div class="info-row">
+            <span class="label">注册时间：</span>
+            <span class="value">{{zhuce}}</span>
+        </div>
+        <div class="info-row">
+            <span class="label">加群时间：</span>
+            <span class="value">{{jiaqun}}</span>
+        </div>
+    </div>
+</div>
+
+<script>
+    /**
+     * 随机生成鲜艳颜色的逻辑
+     */
+    function setRandomVibrantBorder() {
+        const container = document.getElementById('mainContainer');
+        // H: 随机 S: 90%(高饱和) L: 55%(适中亮度)
+        const hue = Math.floor(Math.random() * 360);
+        container.style.borderColor = `hsl(${hue}, 90%, 55%)`;
+    }
+
+    // 页面加载瞬间更换颜色
+    window.onload = setRandomVibrantBorder;
+</script>
+
+</body>
+</html>
