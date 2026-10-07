@@ -1,0 +1,12 @@
+node_modules/
+kakake-plugin-mkbot/
+napcat-plugin-mkbot/
+/kakake-plugin-mkbot*.zip
+python/build/
+python/dist/
+python/dist-docker/
+python/build-docker/
+python/*.spec
+!python/prebuilt/**/*.gz
+*.log
+.DS_Store

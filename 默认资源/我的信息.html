@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>我的信息 - MKbot</title>
+  <style>
+    :root {
+      --accent-pink: #ff77b7;
+      --accent-pink-2: #ffb3d9;
+      --glass-base: rgba(255, 182, 193, 0.36);
+      --glass-border: rgba(255, 182, 193, 0.35);
+      --text-main: #ffffff;
+      --text-sub: rgba(255, 255, 255, 0.8);
+      --shadow: rgba(255, 105, 180, 0.25);
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body, html {
+      width: 100%;
+      height: 100%;
+      font-family: -apple-system, "Noto Sans SC", "Microsoft YaHei", Arial, sans-serif;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 18px;
+    }
+
+    .background-container {
+      position: fixed;
+      inset: 0;
+      /* 深色一点的粉色底，避免文字太浅看不清 */
+      background: linear-gradient(135deg, #ffb6d8 0%, #ffd1e8 26%, #cfe5ff 100%);
+      z-index: 1;
+    }
+
+    .ui-overlay {
+      position: relative;
+      z-index: 10;
+      width: 100%;
+      max-width: 980px;
+      padding: 22px 26px 26px 26px;
+      animation: fadeIn 0.45s ease-out;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .glass-card {
+      background: var(--glass-base);
+      /* 降低模糊强度，加速渲染 */
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border-radius: 26px;
+      border: 2px solid rgba(255, 182, 193, 0.55);
+      padding: 22px 22px;
+      box-shadow: 0 18px 45px var(--shadow);
+      color: var(--text-main);
+    }
+
+    .card-header {
+      display: flex;
+      align-items: center;
+      justify-content: flex-start;
+      margin-bottom: 16px;
+      gap: 18px;
+    }
+
+    .avatar-wrapper {
+      width: 86px;
+      height: 86px;
+      border-radius: 50%;
+      border: 3px solid rgba(255, 255, 255, 0.9);
+      overflow: hidden;
+      flex-shrink: 0;
+      background: radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.35), rgba(255, 182, 193, 0.22));
+      box-shadow: 0 4px 12px rgba(0,0,0,0.20);
+      position: relative;
+    }
+
+    .avatar-img {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: none;
+    }
+
+    .avatar-initial {
+      width: 100%;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: rgba(255, 255, 255, 0.95);
+      font-size: 26px;
+      font-weight: 1000;
+      letter-spacing: 0.5px;
+      text-shadow: 0 0 10px rgba(255, 105, 180, 0.25);
+      user-select: none;
+      position: absolute;
+      inset: 0;
+    }
+
+    .title-group .time-prefix {
+      font-size: 13px;
+      font-weight: 900;
+      color: var(--accent-pink);
+      letter-spacing: 1px;
+      text-shadow: 0 0 10px rgba(255, 182, 193, 0.35);
+      margin-bottom: 3px;
+    }
+
+    .title-group .title {
+      font-size: 30px;
+      font-weight: 900;
+      line-height: 1.15;
+      margin-bottom: 0;
+      color: rgba(255,255,255,0.98);
+      text-shadow: 0 8px 24px rgba(0,0,0,0.25), 0 0 16px rgba(255,105,180,0.25);
+    }
+
+    .panels {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 14px;
+      margin-top: 12px;
+    }
+
+    .panel {
+      background: rgba(90, 20, 60, 0.10);
+      border: 2px solid rgba(255, 182, 193, 0.32);
+      border-radius: 18px;
+      padding: 16px 14px 14px 14px;
+      box-shadow: 0 12px 30px rgba(0,0,0,0.14);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .panel > * { position: relative; z-index: 1; }
+
+    .panel-title {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      color: #fff;
+      font-weight: 1000;
+      font-size: 16px;
+      margin-bottom: 12px;
+      letter-spacing: 0.6px;
+    }
+
+    .panel-title .dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: var(--accent-pink);
+      box-shadow: 0 0 18px rgba(255, 119, 183, 0.75);
+      flex-shrink: 0;
+    }
+
+    .panel-grid-2 {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    .kv {
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 16px;
+      padding: 12px 10px;
+    }
+
+    .kv .label {
+      color: rgba(255, 255, 255, 0.82);
+      font-size: 13px;
+      margin-bottom: 8px;
+      letter-spacing: 0.4px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .kv .value {
+      display: flex;
+      align-items: baseline;
+      gap: 8px;
+      flex-wrap: wrap;
+      color: #fff;
+      font-size: 24px;
+      font-weight: 1000;
+    }
+
+    .kv .unit {
+      font-size: 13px;
+      font-weight: 900;
+      color: rgba(255, 255, 255, 0.72);
+    }
+
+    .big-number {
+      font-size: 34px;
+      font-weight: 1000;
+      letter-spacing: 0.3px;
+    }
+
+    .note {
+      margin-top: 18px;
+      font-size: 11px;
+      color: rgba(255, 255, 255, 0.35);
+      text-align: center;
+      letter-spacing: 2px;
+      line-height: 1.7;
+    }
+
+    /* 横屏友好：当视口较窄时自动退化为两列 */
+    @media (orientation: landscape) and (min-width: 700px) {
+      /* 横屏：每个板块单独占一行，阅读更清晰 */
+      .panels {
+        grid-template-columns: 1fr !important;
+      }
+    }
+
+    @media (max-width: 920px) {
+      .ui-overlay { padding: 18px 16px 18px 16px; }
+      .panels { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+
+    @media (max-width: 560px) {
+      .panels { grid-template-columns: repeat(1, minmax(0, 1fr)); }
+      .title-group .title { font-size: 26px; }
+      .avatar-wrapper { width: 74px; height: 74px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="background-container"></div>
+
+  <div class="ui-overlay">
+    <div class="glass-card">
+      <header class="card-header">
+        <div class="avatar-wrapper">
+          <!-- 头像：图片失败不影响渲染，保留文字兜底 -->
+          <img
+            class="avatar-img"
+            id="avatarImg"
+            src="https://q4.qlogo.cn/g?b=qq&nk={{qq}}&s=5"
+            alt="用户头像"
+            loading="eager"
+            decoding="async"
+            referrerpolicy="no-referrer"
+            onerror="this.style.display='none';"
+            onload="this.style.display='block'; var init=document.getElementById('avatarInitial'); if(init) init.style.display='none';"
+          >
+            <!-- 图片加载失败时直接留空（不使用文字兜底） -->
+            <div class="avatar-initial" id="avatarInitial" style="display:none"></div>
+        </div>
+        <div class="title-group">
+          <div class="time-prefix">time:{{time}}</div>
+          <div class="title">{{title}} ({{qq}})</div>
+        </div>
+      </header>
+
+      <div class="panels">
+        <!-- 01. 货币 -->
+        <section class="panel">
+          <div class="panel-title"><span class="dot"></span>货币</div>
+          <div class="panel-grid-2">
+            <div class="kv">
+              <div class="label">现有货币</div>
+              <div class="value">
+                <span id="currentMoney">{{currentMoney}}</span>
+              </div>
+            </div>
+            <div class="kv">
+              <div class="label">储存货币</div>
+              <div class="value">
+                <span id="bankMoney">{{bankMoney}}</span>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- 02. 道具 -->
+        <section class="panel">
+          <div class="panel-title"><span class="dot"></span>道具</div>
+          <div class="panel-grid-2" style="margin-top: 6px;">
+            <div class="kv">
+              <div class="label">诱饵数量</div>
+              <div class="value">
+                <span class="big-number" id="baitCount">{{baitCount}}</span><span class="unit">个</span>
+              </div>
+            </div>
+            <div class="kv">
+              <div class="label">禁言卡</div>
+              <div class="value">
+                <span class="big-number" id="muteCardCount">{{muteCardCount}}</span><span class="unit">张</span>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- 03. 签到 -->
+        <section class="panel">
+          <div class="panel-title"><span class="dot"></span>签到</div>
+          <div class="panel-grid-2">
+            <div class="kv">
+              <div class="label">累计签到</div>
+              <div class="value">
+                <span id="signTotal">{{signTotal}}</span><span class="unit">天</span>
+              </div>
+            </div>
+            <div class="kv">
+              <div class="label">连续签到</div>
+              <div class="value">
+                <span id="signStreak">{{signStreak}}</span><span class="unit">天</span>
+              </div>
+            </div>
+          </div>
+        </section>
+      </div>
+
+    </div>
+  </div>
+
+  <script>
+    // 不接后端也能预览：如果占位符仍为 {{xxx }}，则用示例数据兜底
+    (function () {
+      const fallback = {
+        title: '我的信息',
+        qq: '864264375',
+        currentMoney: '0归笺',
+        bankMoney: '0归笺',
+        baitCount: '0',
+        muteCardCount: '0',
+        signTotal: '0',
+        signStreak: '0'
+      };
+
+      function looksLikePlaceholder(text) {
+        return typeof text === 'string' && text.includes('{{') && text.includes('}}');
+      }
+
+      // 标题（含 QQ 括号）
+      var titleEl = document.querySelector('.title');
+      if (titleEl && looksLikePlaceholder(titleEl.textContent)) titleEl.textContent = `${fallback.title} (${fallback.qq})`;
+
+      // time prefix
+      var timeEl = document.querySelector('.time-prefix');
+      if (timeEl && looksLikePlaceholder(timeEl.textContent)) {
+        timeEl.textContent = 'time:' + new Date().toISOString().slice(0, 10).replace(/-/g, '/');
+      }
+
+      // 数值
+      const map = {
+        currentMoney: 'currentMoney',
+        bankMoney: 'bankMoney',
+        baitCount: 'baitCount',
+        muteCardCount: 'muteCardCount',
+        signTotal: 'signTotal',
+        signStreak: 'signStreak'
+      };
+      for (const [key, id] of Object.entries(map)) {
+        const el = document.getElementById(id);
+        if (el && looksLikePlaceholder(el.textContent)) el.textContent = fallback[key];
+      }
+    })();
+  </script>
+</body>
+</html>
+
