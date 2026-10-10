@@ -1,0 +1,591 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MK-Bot 使用帮助</title>
+  <script>
+    (function () {
+      var raw = "{{uiTheme}}";
+      var theme = "clear";
+      if (String(raw).trim() === "1" && raw.indexOf("{{") === -1) theme = "light";
+      document.documentElement.setAttribute("data-theme", theme);
+    })();
+  </script>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      width: 100%;
+      height: 100%;
+      min-height: 100%;
+    }
+
+    body {
+      font-family: -apple-system, "Noto Sans SC", "Microsoft YaHei", sans-serif;
+      color: #fff;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+      background-color: #0f1923;
+    }
+
+    .background-container {
+      position: fixed;
+      inset: 0;
+      z-index: 0;
+      background-color: #0f1923;
+      overflow: hidden;
+    }
+
+    .background-container .bg-image {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      object-position: center;
+    }
+
+    .background-container::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.12);
+      pointer-events: none;
+    }
+
+    .container {
+      flex: 1;
+      width: 100%;
+      padding: 0 clamp(10px, 2.5vw, 20px) clamp(10px, 2vh, 24px);
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      z-index: 1;
+    }
+
+    .container::before {
+      content: "";
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: clamp(120px, 22vh, 220px);
+      background: linear-gradient(180deg, rgba(0, 0, 0, 0.08) 0%, transparent 100%);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .head-box {
+      margin-top: clamp(24px, 5.5vh, 60px);
+      padding-bottom: clamp(4px, 0.8vh, 8px);
+      text-align: center;
+      position: relative;
+      z-index: 1;
+      flex-shrink: 0;
+    }
+
+    .head-box .title {
+      font-size: clamp(26px, 6vmin, 50px);
+      font-weight: 800;
+      color: #fff3dc;
+      letter-spacing: clamp(1px, 0.5vw, 4px);
+      text-shadow: 0 2px 8px rgba(0, 0, 0, 0.55), 0 0 16px rgba(0, 0, 0, 0.35);
+      line-height: 1.15;
+    }
+
+    .head-box .label {
+      margin-top: clamp(6px, 1vh, 10px);
+      font-size: clamp(13px, 2.2vmin, 18px);
+      color: rgba(255, 255, 255, 0.88);
+      letter-spacing: clamp(0.5px, 0.15vw, 1px);
+      text-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
+    }
+
+    .cont-box {
+      border-radius: clamp(14px, 2.2vmin, 20px);
+      margin-top: clamp(10px, 1.8vh, 20px);
+      overflow: hidden;
+      position: relative;
+      z-index: 1;
+      flex-shrink: 0;
+    }
+
+    .cont-box > * {
+      position: relative;
+      z-index: 1;
+    }
+
+    .cont-box:last-of-type {
+      margin-bottom: clamp(8px, 1.5vh, 20px);
+    }
+
+    .help-group {
+      font-size: clamp(14px, 2.2vmin, 18px);
+      font-weight: bold;
+      padding: clamp(10px, 1.5vh, 15px) clamp(12px, 2vw, 20px) clamp(6px, 1vh, 10px);
+      letter-spacing: 0.5px;
+    }
+
+    .help-table {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      width: 100%;
+    }
+
+    .help-table .tr {
+      display: contents;
+    }
+
+    .help-table .td {
+      font-size: clamp(11px, 1.7vmin, 14px);
+      padding:
+        clamp(8px, 1.2vh, 12px)
+        clamp(4px, 1vw, 8px)
+        clamp(8px, 1.2vh, 12px)
+        clamp(34px, 6.5vw, 50px);
+      line-height: 1.45;
+      position: relative;
+      text-align: left;
+      vertical-align: top;
+      min-width: 0;
+      word-break: break-word;
+    }
+
+    .help-icon {
+      width: clamp(26px, 4.5vmin, 36px);
+      height: clamp(26px, 4.5vmin, 36px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: absolute;
+      left: clamp(6px, 1.2vw, 10px);
+      top: clamp(8px, 1.2vh, 14px);
+      border-radius: clamp(6px, 1vmin, 8px);
+      line-height: 1;
+    }
+
+    .help-icon svg {
+      width: clamp(14px, 2.5vmin, 18px);
+      height: clamp(14px, 2.5vmin, 18px);
+      display: block;
+      color: #fff6e8;
+    }
+
+    .help-title {
+      display: block;
+      font-size: clamp(13px, 2.3vmin, 16px);
+      line-height: 1.35;
+      font-weight: 700;
+    }
+
+    .help-desc {
+      display: block;
+      font-size: clamp(11px, 1.9vmin, 13px);
+      line-height: 1.4;
+      margin-top: clamp(1px, 0.3vh, 3px);
+    }
+
+    /* 主题0 / 默认：清晰透明玻璃 + 浅色字 */
+    html[data-theme="clear"] .cont-box {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.38);
+      box-shadow:
+        0 6px 24px rgba(0, 0, 0, 0.1),
+        inset 0 1px 0 rgba(255, 255, 255, 0.45);
+    }
+
+    html[data-theme="clear"] .help-group {
+      color: #fff3dc;
+      background: rgba(0, 0, 0, 0.14);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.22);
+      text-shadow: 0 1px 4px rgba(0, 0, 0, 0.55), 0 0 12px rgba(0, 0, 0, 0.35);
+    }
+
+    html[data-theme="clear"] .help-table {
+      color: #fff;
+      background: transparent;
+    }
+
+    html[data-theme="clear"] .help-table .td {
+      background: transparent;
+      box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.12);
+    }
+
+    html[data-theme="clear"] .help-table .tr:nth-child(even) .td {
+      background: rgba(255, 255, 255, 0.025);
+    }
+
+    html[data-theme="clear"] .help-icon {
+      background: rgba(255, 255, 255, 0.1);
+      border: 1px solid rgba(255, 255, 255, 0.42);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.5);
+    }
+
+    html[data-theme="clear"] .help-icon svg {
+      color: #fff6e8;
+      filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.45));
+    }
+
+    html[data-theme="clear"] .help-title {
+      color: #fff6e8;
+      text-shadow: 0 1px 4px rgba(0, 0, 0, 0.55), 0 0 10px rgba(0, 0, 0, 0.35);
+    }
+
+    html[data-theme="clear"] .help-desc {
+      color: rgba(255, 255, 255, 0.92);
+      text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5), 0 0 8px rgba(0, 0, 0, 0.3);
+    }
+
+    /* 主题1：白色内容层 + 深色字（现行样式） */
+    html[data-theme="light"] .cont-box {
+      background: rgba(255, 255, 255, 0.16);
+      border: 1px solid rgba(255, 255, 255, 0.45);
+      box-shadow:
+        0 6px 24px rgba(0, 0, 0, 0.1),
+        inset 0 1px 0 rgba(255, 255, 255, 0.65);
+    }
+
+    html[data-theme="light"] .help-group {
+      color: #3a2f1c;
+      background: rgba(255, 255, 255, 0.22);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.55);
+    }
+
+    html[data-theme="light"] .help-table {
+      color: #2a2418;
+      background: rgba(255, 255, 255, 0.08);
+    }
+
+    html[data-theme="light"] .help-table .td {
+      background: rgba(255, 255, 255, 0.12);
+      box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.28);
+    }
+
+    html[data-theme="light"] .help-table .tr:nth-child(even) .td {
+      background: rgba(255, 255, 255, 0.18);
+    }
+
+    html[data-theme="light"] .help-icon {
+      background: rgba(255, 255, 255, 0.38);
+      border: 1px solid rgba(255, 255, 255, 0.72);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.85);
+    }
+
+    html[data-theme="light"] .help-icon svg {
+      color: #6b5434;
+    }
+
+    html[data-theme="light"] .help-title {
+      color: #2f2718;
+    }
+
+    html[data-theme="light"] .help-desc {
+      color: rgba(42, 36, 24, 0.78);
+    }
+
+    .footer-note {
+      text-align: center;
+      font-size: clamp(10px, 1.6vmin, 12px);
+      color: rgba(238, 238, 238, 0.35);
+      letter-spacing: clamp(1px, 0.25vw, 2px);
+      padding: clamp(4px, 0.8vh, 8px) 0;
+      position: relative;
+      z-index: 1;
+      flex-shrink: 0;
+      margin-top: auto;
+    }
+
+    @media (max-width: 560px) {
+      .help-table {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+    }
+
+    @media (max-width: 380px) {
+      .help-table {
+        grid-template-columns: minmax(0, 1fr);
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="background-container" id="bgLayer">
+    <img id="bg-image" class="bg-image" alt="" />
+  </div>
+  <div class="container">
+    <div class="head-box">
+      <div class="title">使用帮助</div>
+      <div class="label">MK-Bot · NapCat 综合娱乐与群管</div>
+    </div>
+
+    <div class="cont-box">
+      <div class="help-group">基础功能</div>
+      <div class="help-table">
+        <div class="tr">
+          <div class="td">
+            <span class="help-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#mk-icon-key"/></svg></span>
+            <span class="help-title">授权系统</span>
+            <span class="help-desc">插件内置的授权系统</span>
+          </div>
+          <div class="td">
+            <span class="help-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#mk-icon-shield"/></svg></span>
+            <span class="help-title">群管系统</span>
+            <span class="help-desc">仅限于群内使用</span>
+          </div>
+          <div class="td">
+            <span class="help-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#mk-icon-user-add"/></svg></span>
+            <span class="help-title">邀人统计</span>
+            <span class="help-desc">开启后可记录邀请次数，并且可一系列控制</span>
+          </div>
+        </div>
+        <div class="tr">
+          <div class="td">
+            <span class="help-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#mk-icon-settings"/></svg></span>
+            <span class="help-title">事件管理</span>
+            <span class="help-desc">各种开关的管理及介绍</span>
+          </div>
+          <div class="td">
+            <span class="help-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#mk-icon-music"/></svg></span>
+            <span class="help-title">音乐系统</span>
+            <span class="help-desc">听歌的，共4种音源，可语音、链接、卡片返回</span>
+          </div>
+          <div class="td">
+            <span class="help-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#mk-icon-video"/></svg></span>
+            <span class="help-title">视频菜单</span>
+            <span class="help-desc">接入了大量的视频接口，注：接口来源于网络</span>
+          </div>
+        </div>
+        <div class="tr">
+          <div class="td">
+            <span class="help-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#mk-icon-account"/></svg></span>
+            <span class="help-title">账号设置</span>
+            <span class="help-desc">配置登录的机器人账号信息的，如头像昵称签名等</span>
+          </div>
+          <div class="td">
+            <span class="help-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#mk-icon-file-settings"/></svg></span>
+            <span class="help-title">插件配置</span>
+            <span class="help-desc">该功能仅配置MK的config.json文件</span>
+          </div>
+          <div class="td">
+            <span class="help-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#mk-icon-links"/></svg></span>
+            <span class="help-title">接口功能</span>
+            <span class="help-desc">这个是本插件接入的第三方接口，都会在里面</span>
+          </div>
+        </div>
+        <div class="tr">
+          <div class="td">
+            <span class="help-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#mk-icon-fire"/></svg></span>
+            <span class="help-title">管理续火</span>
+            <span class="help-desc">每日续火，需先开启相关事件，支持好友/群聊，支持图片或文案</span>
+          </div>
+          <div class="td">
+            <span class="help-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#mk-icon-qa"/></svg></span>
+            <span class="help-title">问答系统</span>
+            <span class="help-desc">有模糊问答 和 精准问答，支持图片回复</span>
+          </div>
+          <div class="td">
+            <span class="help-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#mk-icon-card"/></svg></span>
+            <span class="help-title">发卡系统</span>
+            <span class="help-desc">全局发卡系统，可用于其他分发娱乐，使用归笺兑换，支持定价、改名等操作</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="cont-box">
+      <div class="help-group">娱乐功能</div>
+      <div class="help-table">
+        <div class="tr">
+          <div class="td">
+            <span class="help-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#mk-icon-calendar"/></svg></span>
+            <span class="help-title">签到</span>
+            <span class="help-desc">每日签到获取奖励</span>
+          </div>
+          <div class="td">
+            <span class="help-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#mk-icon-anchor"/></svg></span>
+            <span class="help-title">钓鱼</span>
+            <span class="help-desc">通过「每日签到」可获取诱饵钓鱼哦～</span>
+          </div>
+          <div class="td">
+            <span class="help-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#mk-icon-id-card"/></svg></span>
+            <span class="help-title">我的信息</span>
+            <span class="help-desc">查看游戏中你的信息</span>
+          </div>
+        </div>
+        <div class="tr">
+          <div class="td">
+            <span class="help-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#mk-icon-bank"/></svg></span>
+            <span class="help-title">银行系统</span>
+            <span class="help-desc">存钱的，有利润，非常建议把货币存进去</span>
+          </div>
+          <div class="td">
+            <span class="help-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#mk-icon-dice"/></svg></span>
+            <span class="help-title">幸运轮盘</span>
+            <span class="help-desc">要来一把豪赌的轮盘吗！</span>
+          </div>
+          <div class="td">
+            <span class="help-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#mk-icon-mail-send"/></svg></span>
+            <span class="help-title">漂流瓶</span>
+            <span class="help-desc">字面意思，不过没有隐私保护，直接公开瓶子主人</span>
+          </div>
+        </div>
+        <div class="tr">
+          <div class="td">
+            <span class="help-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#mk-icon-chat"/></svg></span>
+            <span class="help-title">伪造聊天</span>
+            <span class="help-desc">目前版本仅支持纯文本伪造</span>
+          </div>
+          <div class="td">
+            <span class="help-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#mk-icon-heart"/></svg></span>
+            <span class="help-title">群老婆</span>
+            <span class="help-desc">支持单群或全群</span>
+          </div>
+          <div class="td">
+            <span class="help-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#mk-icon-trophy"/></svg></span>
+            <span class="help-title">排行榜</span>
+            <span class="help-desc">各种类型的排行名单</span>
+          </div>
+        </div>
+        <div class="tr">
+          <div class="td">
+            <span class="help-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#mk-icon-mute"/></svg></span>
+            <span class="help-title">禁言卡</span>
+            <span class="help-desc">使用禁言卡@别人</span>
+          </div>
+          <div class="td">
+            <span class="help-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#mk-icon-briefcase"/></svg></span>
+            <span class="help-title">打工</span>
+            <span class="help-desc">13个岗位独立工资公式；查看打工状态；下班发「结算工资」</span>
+          </div>
+          <div class="td"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="footer-note">发送「菜单」或「/MK」查看本帮助</div>
+  </div>
+
+  <script>
+    (function () {
+      var TIMEOUT = { bg: 15000, ready: 120 };
+      var BG = {
+        landscape: "{{menuBgLandscape}}",
+        portrait: "{{menuBgPortrait}}"
+      };
+
+      var customBgRaw = "{{bgUrl}}";
+      var customBgUrl = "";
+      if (customBgRaw && customBgRaw.indexOf("{{") === -1) {
+        customBgUrl = String(customBgRaw).trim();
+      }
+
+      var bgImg = document.getElementById("bg-image");
+      var state = { bgUrl: "", ready: false, preparing: null };
+
+      function viewport() {
+        return {
+          w: window.innerWidth || document.documentElement.clientWidth || 720,
+          h: window.innerHeight || document.documentElement.clientHeight || 1080
+        };
+      }
+
+      function resolveBgUrl(w, h) {
+        if (customBgUrl) return customBgUrl;
+        var landscape = BG.landscape;
+        var portrait = BG.portrait;
+        if (landscape.indexOf("{{") !== -1) {
+          landscape = "http://xn--mk-ub3cl61ae1v.xn--c5w857b.xn--fiqs8s/mkbot/image/heng.jpg";
+        }
+        if (portrait.indexOf("{{") !== -1) {
+          portrait = "http://xn--mk-ub3cl61ae1v.xn--c5w857b.xn--fiqs8s/mkbot/image/shu.jpg";
+        }
+        return w >= h ? landscape : portrait;
+      }
+
+      function withTimeout(promise, ms) {
+        return Promise.race([
+          promise,
+          new Promise(function (resolve) { setTimeout(resolve, ms); })
+        ]);
+      }
+
+      function waitForDomImage(img, maxMs) {
+        if (!img) return Promise.resolve(false);
+        return withTimeout(new Promise(function (resolve) {
+          var finish = function (ok) { resolve(!!ok); };
+          if (img.complete && img.naturalWidth > 0) return finish(true);
+          img.onload = function () { finish(true); };
+          img.onerror = function () { finish(false); };
+        }), maxMs || TIMEOUT.bg);
+      }
+
+      function applyBackground() {
+        var size = viewport();
+        var url = resolveBgUrl(size.w, size.h);
+        if (bgImg && state.bgUrl !== url) {
+          state.bgUrl = url;
+          bgImg.src = url;
+        }
+        return url;
+      }
+
+      function markReady() {
+        if (state.ready) return;
+        state.ready = true;
+        document.body.setAttribute("data-render-ready", "1");
+      }
+
+      function prepareRender() {
+        if (state.preparing) return state.preparing;
+
+        state.preparing = (async function () {
+          try {
+            applyBackground();
+            await waitForDomImage(bgImg, TIMEOUT.bg);
+            requestAnimationFrame(function () {
+              requestAnimationFrame(markReady);
+            });
+          } catch (_e) {
+            markReady();
+          } finally {
+            state.preparing = null;
+          }
+        })();
+
+        return state.preparing;
+      }
+
+      var resizeTimer;
+      window.addEventListener("resize", function () {
+        if (customBgUrl) return;
+        clearTimeout(resizeTimer);
+        resizeTimer = setTimeout(function () {
+          var size = viewport();
+          var nextUrl = resolveBgUrl(size.w, size.h);
+          if (nextUrl !== state.bgUrl) {
+            applyBackground();
+            waitForDomImage(bgImg, TIMEOUT.bg);
+          }
+        }, TIMEOUT.ready);
+      });
+
+      if (document.readyState === "loading") {
+        document.addEventListener("DOMContentLoaded", prepareRender, { once: true });
+      } else {
+        prepareRender();
+      }
+
+      setTimeout(function () {
+        if (!state.ready) prepareRender();
+      }, TIMEOUT.ready);
+    })();
+  </script>
+</body>
+</html>
