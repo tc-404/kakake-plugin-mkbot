@@ -1,0 +1,1 @@
+export const MKBOT_CONFIG_UI_KEYS = ['OwnerQQs', 'nowoner', 'nowonernr', 'noauth', 'noauthnr', '自触开关'] as const;

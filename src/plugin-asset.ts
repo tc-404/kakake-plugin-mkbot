@@ -1,0 +1,1 @@
+export const PLUGIN_ICON_PATH = 'assets/chajian.png';

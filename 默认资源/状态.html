@@ -1,0 +1,749 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>系统信息监控</title>
+  <script>
+    // 从 window 对象获取传入的数据
+    const pageData = window.pageData || {};
+    // 进程数据会通过 window.processData 传入
+    window.processData = window.processData || [];
+  </script>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Microsoft YaHei', Arial, sans-serif;
+      background-color: #667eea;
+      min-height: 100vh;
+      padding: 20px;
+    }
+
+    .status-bg-image {
+      position: fixed;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      object-position: center;
+      z-index: -2;
+      pointer-events: none;
+    }
+
+    body::before {
+      content: '';
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.4);
+      pointer-events: none;
+      z-index: -1;
+    }
+
+    .container {
+      max-width: 1400px;
+      margin: 0 auto;
+      position: relative;
+      z-index: 1;
+    }
+
+    /* 顶部用户信息区 */
+    .header {
+      display: flex;
+      align-items: center;
+      gap: 30px;
+      margin-bottom: 30px;
+      background: rgba(255, 255, 255, 0.1);
+      padding: 20px;
+      border-radius: 15px;
+      backdrop-filter: blur(10px);
+      border: 2px solid rgba(255, 255, 255, 0.2);
+      flex-wrap: wrap;
+    }
+
+    .header-left {
+      display: flex;
+      align-items: center;
+      gap: 30px;
+      flex: 1;
+      min-width: 300px;
+    }
+
+    .header-right {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 15px;
+      flex: 1;
+      min-width: 400px;
+    }
+
+    .user-avatar {
+      width: 120px;
+      height: 120px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.2);
+      border: 3px solid rgba(255, 255, 255, 0.3);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 48px;
+      color: white;
+      flex-shrink: 0;
+      overflow: hidden;
+    }
+
+    .user-avatar img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .user-info {
+      flex: 1;
+    }
+
+    .user-info h1 {
+      font-size: 32px;
+      color: white;
+      margin-bottom: 8px;
+    }
+
+    .user-info p {
+      color: rgba(255, 255, 255, 0.8);
+      font-size: 16px;
+    }
+
+    .info-cards {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 15px;
+      margin-left: auto;
+      width: 400px;
+    }
+
+    .info-card {
+      background: rgba(255, 255, 255, 0.15);
+      border: 2px solid rgba(255, 255, 255, 0.2);
+      border-radius: 10px;
+      padding: 12px;
+      text-align: center;
+      backdrop-filter: blur(10px);
+    }
+
+    .info-card label {
+      display: none;
+    }
+
+    .info-card .value {
+      font-size: 16px;
+      color: white;
+      font-weight: bold;
+    }
+
+    /* 主内容区 - 两列布局 */
+    .main-content {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+    }
+
+    /* 左侧列 */
+    .left-column {
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    /* 玻璃态卡片 */
+    .glass-card {
+      background: rgba(255, 255, 255, 0.15);
+      border-radius: 15px;
+      padding: 25px;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+      border: 2px solid rgba(255, 255, 255, 0.2);
+      backdrop-filter: blur(10px);
+      color: white;
+    }
+
+    .card-title {
+      font-size: 18px;
+      font-weight: bold;
+      color: white;
+      margin-bottom: 20px;
+      padding-bottom: 10px;
+      border-bottom: 2px solid rgba(255, 255, 255, 0.2);
+    }
+
+    /* 系统状态 */
+    .system-status {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+    }
+
+    .gauge-container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .gauge {
+      width: 120px;
+      height: 120px;
+      border-radius: 50%;
+      background: conic-gradient(var(--gauge-color) 0deg, var(--gauge-color) calc(var(--percentage) * 3.6deg), rgba(255, 255, 255, 0.2) calc(var(--percentage) * 3.6deg));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+    }
+
+    .gauge::after {
+      content: '';
+      width: 100px;
+      height: 100px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.95);
+      position: absolute;
+      box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.1);
+    }
+
+    .gauge-value {
+      position: absolute;
+      font-size: 24px;
+      font-weight: bold;
+      color: #333;
+      z-index: 1;
+    }
+
+    .gauge-label {
+      font-size: 14px;
+      color: rgba(255, 255, 255, 0.8);
+      font-weight: 500;
+    }
+
+    .status-info {
+      font-size: 13px;
+      color: rgba(255, 255, 255, 0.8);
+      line-height: 1.8;
+      margin-top: 15px;
+    }
+
+    .status-info div {
+      display: flex;
+      justify-content: space-between;
+      padding: 8px 0;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .status-info div:last-child {
+      border-bottom: none;
+    }
+
+    /* 存储状态 */
+    .storage-status {
+      margin-top: 0;
+    }
+
+    .progress-bar {
+      width: 100%;
+      height: 20px;
+      background: rgba(255, 255, 255, 0.2);
+      border-radius: 10px;
+      overflow: hidden;
+      margin: 10px 0;
+      position: relative;
+    }
+
+    .progress-fill {
+      height: 100%;
+      background: var(--progress-color);
+      width: var(--percentage);
+      border-radius: 10px;
+      transition: width 0.3s ease, background 0.3s ease;
+    }
+
+    .progress-label {
+      display: flex;
+      justify-content: space-between;
+      font-size: 12px;
+      color: rgba(255, 255, 255, 0.8);
+      margin-bottom: 5px;
+    }
+
+    .progress-percentage {
+      font-size: 14px;
+      font-weight: bold;
+      color: white;
+      margin-top: 5px;
+    }
+
+    .storage-info {
+      font-size: 13px;
+      color: rgba(255, 255, 255, 0.8);
+      margin-top: 10px;
+      line-height: 1.8;
+    }
+
+    .storage-info div {
+      display: flex;
+      justify-content: space-between;
+      padding: 8px 0;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .storage-info div:last-child {
+      border-bottom: none;
+    }
+
+    /* 进程列表 */
+    .process-list {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .process-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 15px;
+    }
+
+    .process-table thead {
+      background: rgba(255, 255, 255, 0.1);
+      border-bottom: 2px solid rgba(255, 255, 255, 0.2);
+    }
+
+    .process-table th {
+      padding: 12px;
+      text-align: left;
+      font-weight: 600;
+      color: white;
+      font-size: 13px;
+    }
+
+    .process-table td {
+      padding: 12px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+      font-size: 13px;
+      color: rgba(255, 255, 255, 0.9);
+    }
+
+    .process-table tbody tr:hover {
+      background: rgba(255, 255, 255, 0.1);
+    }
+
+    .process-name {
+      font-weight: 500;
+      color: white;
+    }
+
+    .process-rank {
+      font-weight: bold;
+      color: #4CAF50;
+      width: 30px;
+    }
+
+    /* 响应式设计 */
+    @media (max-width: 1200px) {
+      .main-content {
+        grid-template-columns: 1fr;
+      }
+
+      .left-column {
+        flex-direction: row;
+      }
+
+      .glass-card {
+        flex: 1;
+      }
+    }
+
+    @media (max-width: 768px) {
+      .header {
+        flex-direction: column;
+        text-align: center;
+      }
+
+      .info-cards {
+        margin-left: 0;
+        width: 100%;
+      }
+
+      .left-column {
+        flex-direction: column;
+      }
+
+      .process-table {
+        font-size: 12px;
+      }
+
+      .process-table th,
+      .process-table td {
+        padding: 8px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <img id="status-bg-image" class="status-bg-image" alt="" />
+  <div id="mk-render-ready" style="display:none"></div>
+  <div class="container">
+    <!-- 顶部用户信息 -->
+    <div class="header">
+      <div class="header-left">
+        <div class="user-avatar">
+          <img id="userAvatar" src="https://q4.qlogo.cn/g?b=qq&nk={{QQ}}&s=5" alt="用户头像" onerror="this.style.display='none'">
+        </div>
+        <div class="user-info">
+          <h1 id="userName">{{name}}</h1>
+          <p id="userQQ">QQ: {{QQ}}</p>
+        </div>
+      </div>
+      <div class="header-right">
+        <div class="info-card">
+          <div class="value" id="sysType">{{type}}</div>
+        </div>
+        <div class="info-card">
+          <div class="value" id="sysArch">{{arch}}</div>
+        </div>
+        <div class="info-card">
+          <div class="value" id="groupCount">群聊数量: {{groupCount}}</div>
+        </div>
+        <div class="info-card">
+          <div class="value" id="friendCount">好友数量: {{friendCount}}</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 主内容区 -->
+    <div class="main-content">
+      <!-- 左侧列 -->
+      <div class="left-column">
+        <!-- 系统状态 -->
+        <div class="glass-card">
+          <div class="card-title">系统状态</div>
+          
+          <div class="system-status">
+            <!-- CPU 仪表盘 -->
+            <div class="gauge-container">
+              <div class="gauge" id="cpuGauge" style="--percentage: {{cpuUsagePercent}}; --gauge-color: #4CAF50;">
+                <div class="gauge-value" id="cpuValue">{{cpuUsagePercent}}%</div>
+              </div>
+              <div class="gauge-label">CPU</div>
+            </div>
+
+            <!-- 内存 仪表盘 -->
+            <div class="gauge-container">
+              <div class="gauge" id="memGauge" style="--percentage: {{memoryUsagePercent}}; --gauge-color: #FF9800;">
+                <div class="gauge-value" id="memValue">{{memoryUsagePercent}}%</div>
+              </div>
+              <div class="gauge-label">内存</div>
+            </div>
+          </div>
+
+          <div class="status-info">
+            <div>
+              <span>CPU核心数:</span>
+              <span id="cpuCount">{{cpuCount}}</span>
+            </div>
+            <div>
+              <span>CPU使用率:</span>
+              <span id="cpuUsage">{{cpuUsagePercent}}%</span>
+            </div>
+            <div>
+              <span>内存总量:</span>
+              <span id="memTotal">{{totalMemoryGB}}</span>
+            </div>
+            <div>
+              <span>内存使用率:</span>
+              <span id="memUsage">{{memoryUsagePercent}}%</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- 存储状态 -->
+        <div class="glass-card">
+          <div class="card-title">存储状态</div>
+          
+          <div class="storage-status">
+            <div class="progress-label">
+              <span>磁盘使用情况</span>
+              <span id="diskLabel">{{diskUsedGB}} / {{diskTotalGB}}</span>
+            </div>
+            <div class="progress-bar">
+              <div class="progress-fill" id="diskFill" style="--percentage: {{diskUsagePercent}}%; --progress-color: #F44336;"></div>
+            </div>
+            <div class="progress-percentage" id="diskPercent">{{diskUsagePercent}}%</div>
+
+            <div class="storage-info">
+              <div>
+                <span>总容量:</span>
+                <span id="diskTotal">{{diskTotalGB}}</span>
+              </div>
+              <div>
+                <span>已用:</span>
+                <span id="diskUsed">{{diskUsedGB}}</span>
+              </div>
+              <div>
+                <span>可用:</span>
+                <span id="diskFree">{{diskFreeGB}}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 右侧列 - 进程占用排行 -->
+      <div class="glass-card process-list">
+        <div class="card-title">进程占用排行榜 (按内存占用降序排列)</div>
+        
+        <table class="process-table">
+          <thead>
+            <tr>
+              <th style="width: 30px;">排名</th>
+              <th>进程名</th>
+              <th>PID</th>
+              <th>内存占用</th>
+              <th>CPU占比</th>
+            </tr>
+          </thead>
+          <tbody id="processTableBody">
+            <tr>
+              <td class="process-rank">1</td>
+              <td class="process-name">/usr/bin/node</td>
+              <td>1234</td>
+              <td>1024.00 MB</td>
+              <td>15.2%</td>
+            </tr>
+            <tr>
+              <td class="process-rank">2</td>
+              <td class="process-name">chrome</td>
+              <td>5678</td>
+              <td>768.00 MB</td>
+              <td>8.5%</td>
+            </tr>
+            <tr>
+              <td class="process-rank">3</td>
+              <td class="process-name">java</td>
+              <td>9012</td>
+              <td>512.00 MB</td>
+              <td>12.3%</td>
+            </tr>
+            <tr>
+              <td class="process-rank">4</td>
+              <td class="process-name">python3</td>
+              <td>3456</td>
+              <td>256.00 MB</td>
+              <td>5.1%</td>
+            </tr>
+            <tr>
+              <td class="process-rank">5</td>
+              <td class="process-name">mysql</td>
+              <td>7890</td>
+              <td>192.00 MB</td>
+              <td>3.2%</td>
+            </tr>
+            <tr>
+              <td class="process-rank">6</td>
+              <td class="process-name">redis-server</td>
+              <td>2345</td>
+              <td>128.00 MB</td>
+              <td>2.1%</td>
+            </tr>
+            <tr>
+              <td class="process-rank">7</td>
+              <td class="process-name">nginx</td>
+              <td>6789</td>
+              <td>64.00 MB</td>
+              <td>1.5%</td>
+            </tr>
+            <tr>
+              <td class="process-rank">8</td>
+              <td class="process-name">docker</td>
+              <td>0123</td>
+              <td>48.00 MB</td>
+              <td>0.8%</td>
+            </tr>
+            <tr>
+              <td class="process-rank">9</td>
+              <td class="process-name">systemd</td>
+              <td>4567</td>
+              <td>32.00 MB</td>
+              <td>0.2%</td>
+            </tr>
+            <tr>
+              <td class="process-rank">10</td>
+              <td class="process-name">sshd</td>
+              <td>8901</td>
+              <td>16.00 MB</td>
+              <td>0.1%</td>
+            </tr>
+            <tr>
+              <td class="process-rank">11</td>
+              <td class="process-name">bash</td>
+              <td>2468</td>
+              <td>8.00 MB</td>
+              <td>0.0%</td>
+            </tr>
+            <tr>
+              <td class="process-rank">12</td>
+              <td class="process-name">grep</td>
+              <td>1357</td>
+              <td>4.00 MB</td>
+              <td>0.0%</td>
+            </tr>
+            <tr>
+              <td class="process-rank">13</td>
+              <td class="process-name">cat</td>
+              <td>9753</td>
+              <td>2.00 MB</td>
+              <td>0.0%</td>
+            </tr>
+            <tr>
+              <td class="process-rank">14</td>
+              <td class="process-name">sleep</td>
+              <td>5432</td>
+              <td>1.00 MB</td>
+              <td>0.0%</td>
+            </tr>
+            <tr>
+              <td class="process-rank">15</td>
+              <td class="process-name">cron</td>
+              <td>6543</td>
+              <td>0.50 MB</td>
+              <td>0.0%</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    function waitForDomImage(img, maxMs) {
+      const ms = Number.isFinite(maxMs) ? maxMs : 15000;
+      if (!img) return Promise.resolve(false);
+      return Promise.race([
+        new Promise((resolve) => {
+          const finish = (ok) => resolve(!!ok);
+          if (img.complete && img.naturalWidth > 0) return finish(true);
+          img.onload = () => finish(true);
+          img.onerror = () => finish(false);
+        }),
+        new Promise((resolve) => setTimeout(() => resolve(false), ms)),
+      ]);
+    }
+
+    async function waitStatusBackgroundReady(maxMs) {
+      const bgImg = document.getElementById('status-bg-image');
+      const bgUrl = '{{backgroundImageUrl}}';
+      if (!bgImg || !bgUrl || bgUrl.indexOf('{{') !== -1) return;
+      bgImg.src = bgUrl;
+      await waitForDomImage(bgImg, maxMs);
+    }
+
+    // 获取颜色函数 - 绿色(<50%) -> 黄色(50-75%) -> 红色(>75%)
+    function getColor(percentage) {
+      const p = parseFloat(percentage);
+      if (p < 50) return '#4CAF50'; // 绿色
+      if (p < 75) return '#FF9800'; // 黄色
+      return '#F44336'; // 红色
+    }
+
+    // 初始化进程列表
+    function initProcessTable() {
+      if (!window.processData || !Array.isArray(window.processData)) return;
+      
+      const tbody = document.getElementById('processTableBody');
+      tbody.innerHTML = '';
+      
+      // 按内存使用量降序排列
+      const sortedProcesses = window.processData.sort((a, b) => {
+        return parseFloat(b.memory || 0) - parseFloat(a.memory || 0);
+      });
+      
+      // 只显示前 15 个
+      sortedProcesses.slice(0, 15).forEach((proc, index) => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td class="process-rank">${index + 1}</td>
+          <td class="process-name">${proc.name || 'Unknown'}</td>
+          <td>${proc.pid || 'N/A'}</td>
+          <td>${proc.memoryMB || '0.00'} MB</td>
+          <td>${proc.cpuPercent || '0.0'}%</td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    // 更新仪表盘颜色
+    function updateGaugeColors() {
+      // CPU 仪表盘
+      const cpuPercent = parseFloat(document.getElementById('cpuValue').textContent);
+      if (!isNaN(cpuPercent)) {
+        document.getElementById('cpuGauge').style.setProperty('--gauge-color', getColor(cpuPercent));
+      }
+
+      // 内存仪表盘
+      const memPercent = parseFloat(document.getElementById('memValue').textContent);
+      if (!isNaN(memPercent)) {
+        document.getElementById('memGauge').style.setProperty('--gauge-color', getColor(memPercent));
+      }
+
+      // 磁盘进度条
+      const diskPercent = parseFloat(document.getElementById('diskPercent').textContent);
+      if (!isNaN(diskPercent)) {
+        document.getElementById('diskFill').style.setProperty('--progress-color', getColor(diskPercent));
+      }
+    }
+    
+    // 页面加载完成后初始化
+    async function markRenderReady() {
+      try {
+        initProcessTable();
+        updateGaugeColors();
+        await Promise.race([
+          Promise.all([
+            waitStatusBackgroundReady(15000),
+            (async () => {
+              try {
+                const avatar = document.getElementById('userAvatar');
+                if (!avatar || avatar.complete) return;
+                await new Promise((resolve) => {
+                  avatar.onload = () => resolve();
+                  avatar.onerror = () => resolve();
+                });
+              } catch (_e) {}
+            })(),
+            (async () => {
+              try {
+                if (document.fonts && document.fonts.ready) await document.fonts.ready;
+              } catch (_e) {}
+            })(),
+          ]),
+          new Promise((resolve) => setTimeout(resolve, 15000)),
+        ]);
+        await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+      } catch (_e) {}
+      document.body.setAttribute('data-render-ready', '1');
+      var marker = document.getElementById('mk-render-ready');
+      if (marker) marker.textContent = '1';
+    }
+
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', markRenderReady);
+    } else {
+      markRenderReady();
+    }
+  </script>
+</body>
+</html>

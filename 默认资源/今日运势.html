@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smart Fortune Card - LazyMan</title>
+    <style>
+        :root {
+            /* --- 背景配置区域 --- */
+            /* 1. 默认纯色 */
+            --default-bg-color: #fff0f3; 
+            /* 2. 通过 image_name 参数自动加载 image 文件夹中的图片 */
+            /* 示例：image_name: "运势1.png" */
+            --bg-input: none; 
+
+            /* UI 颜色配置 */
+            --accent-pink: #FFB6C1;
+            --glass-base: rgba(15, 15, 18, 0.5);
+            --text-main: #FFFFFF;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body, html {
+            width: 100%;
+            height: 100%;
+            font-family: -apple-system, "Noto Sans SC", "Microsoft YaHei", sans-serif;
+            overflow: hidden;
+            display: flex;
+            align-items: flex-end; /* 内容靠下 */
+            justify-content: center;
+        }
+
+        /* 背景层：逻辑解耦 */
+        .background-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: var(--default-bg-color);
+            z-index: 1;
+            overflow: hidden;
+        }
+
+        .background-container .bg-image {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            object-position: center;
+        }
+
+        /* 内容包装层 */
+        .ui-overlay {
+            position: relative;
+            z-index: 10; /* 高层级 */
+            width: 100%;
+            max-width: 480px;
+            padding: 30px 20px 50px 20px;
+            animation: fadeIn 0.6s ease-out;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* 半透明极简卡片 */
+        .glass-card {
+            background: var(--glass-base);
+            backdrop-filter: blur(25px);
+            -webkit-backdrop-filter: blur(25px);
+            border-radius: 35px;
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            padding: 30px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.3);
+            color: var(--text-main);
+        }
+
+        /* 头部布局 */
+        .card-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 25px;
+        }
+
+        /* 头像始终为圆形 */
+        .avatar-wrapper {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%; /* 强制圆形 */
+            border: 3px solid #fff;
+            overflow: hidden; /* 超出部分隐藏 */
+            margin-right: 18px;
+            flex-shrink: 0;
+            background: #eee;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+        }
+
+        .avatar-wrapper img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover; /* 确保图片比例不对时也能居中填满圆形 */
+            display: block;
+        }
+
+        .info-group .time-prefix {
+            font-size: 13px;
+            font-weight: 900;
+            color: var(--accent-pink);
+            letter-spacing: 1px;
+            text-shadow: 0 0 10px rgba(255, 182, 193, 0.4);
+            margin-bottom: 2px;
+        }
+
+        .info-group .title {
+            font-size: 26px;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .star-box {
+            display: flex;
+            gap: 3px;
+            color: var(--accent-pink);
+        }
+
+        /* 高亮文字带 */
+        .content-highlight {
+            display: flex;
+            align-items: flex-start;
+            margin-bottom: 18px;
+            padding-top: 10px;
+        }
+
+        .glow-bar {
+            width: 4px;
+            height: 24px;
+            background: #fff;
+            box-shadow: 0 0 12px #fff;
+            border-radius: 2px;
+            margin-right: 12px;
+            margin-top: 2px;
+        }
+
+        .focus-text {
+            font-size: 19px;
+            font-weight: 600;
+            line-height: 1.4;
+        }
+
+        .sub-text {
+            font-size: 15px;
+            line-height: 1.7;
+            color: rgba(255, 255, 255, 0.7);
+            padding-left: 17px;
+            border-left: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        /* 警示底部 */
+        .safety-note {
+            margin-top: 30px;
+            font-size: 11px;
+            text-align: center;
+            color: rgba(255, 255, 255, 0.3);
+            letter-spacing: 2px;
+        }
+
+    </style>
+</head>
+<body>
+    <!-- 01. 背景容器 -->
+    <div class="background-container">
+        <img id="bg-image" class="bg-image" alt="" />
+    </div>
+
+    <!-- 02. 内容容器 -->
+    <div class="ui-overlay">
+        
+        <div class="glass-card">
+            <header class="card-header">
+                <!-- 头像已锁定圆形 -->
+                <div class="avatar-wrapper">
+                    <img src="https://q4.qlogo.cn/g?b=qq&nk={{qq}}&s=5" alt="Avatar">
+                </div>
+                <div class="info-group">
+                    <div class="time-prefix">time:{{time}}</div>
+                    <div class="title">{{Sorte}}</div>
+                    <div class="star-box">
+                        <!-- 纯代码星标 -->
+                        <span style="font-size: 18px;">{{Estrelas}}</span>
+                    </div>
+                </div>
+            </header>
+
+            <main>
+                <div class="content-highlight">
+                    <div class="glow-bar"></div>
+                    <div class="focus-text">{{signText}}</div>
+                </div>
+                
+                <p class="sub-text">
+                    {{unSignText}}
+                </p>
+            </main>
+
+            <footer class="safety-note">
+                本内容为虚拟生成，切勿迷信！
+            </footer>
+        </div>
+
+    </div>
+
+    <script>
+        function markRenderReady() {
+            try {
+                document.body.setAttribute('data-render-ready', '1');
+            } catch (e) {}
+        }
+
+        function waitForDomImage(img, maxMs) {
+            const ms = Number.isFinite(maxMs) ? maxMs : 15000;
+            if (!img) return Promise.resolve(false);
+            return Promise.race([
+                new Promise((resolve) => {
+                    const finish = (ok) => resolve(!!ok);
+                    if (img.complete && img.naturalWidth > 0) return finish(true);
+                    img.onload = () => finish(true);
+                    img.onerror = () => finish(false);
+                }),
+                new Promise((resolve) => setTimeout(() => resolve(false), ms)),
+            ]);
+        }
+
+        async function applyFortuneBackground() {
+            const bgImg = document.getElementById('bg-image');
+            const bgUrl = '{{backgroundImageUrl}}';
+            if (!bgImg || !bgUrl || bgUrl.includes('{{') || bgUrl.includes('}}')) {
+                markRenderReady();
+                return;
+            }
+
+            bgImg.src = bgUrl;
+            await waitForDomImage(bgImg, 15000);
+
+            const avatar = document.querySelector('.avatar-wrapper img');
+            if (avatar) await waitForDomImage(avatar, 8000);
+
+            await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+            markRenderReady();
+        }
+
+        applyFortuneBackground().catch(() => markRenderReady());
+    </script>
+
+</body>
+</html>

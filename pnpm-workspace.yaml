@@ -1,0 +1,8 @@
+# 单包仓库：声明工作区根为当前目录（pnpm 需要如此才能识别 allowBuilds）
+packages:
+  - '.'
+
+# pnpm v9+：允许 esbuild 执行安装脚本（Vite 依赖）；使用 npm 时可忽略本文件
+allowBuilds:
+  esbuild: true
+  sharp: true
