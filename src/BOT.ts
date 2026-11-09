@@ -5,8 +5,9 @@ import path from 'path';
 import crypto from 'crypto';
 import { fileURLToPath, pathToFileURL } from 'url';
 import { MK_MEDIA_BASE64_LIMIT } from './lib/download-timeout';
-import { configureMediaInlineLimit, configureProtocolLocalRead, getMediaInlineLimitBytes, canProtocolReadLocalFile, shouldDownloadMediaForSend, shouldClampDownloadToInlineLimit, auditMediaConfig, getInlineMaterializeDir, getInlineMaterializeLogger } from './lib/media-inline';
+import { configureMediaInlineLimit, configureProtocolLocalRead, getMediaInlineLimitBytes, canProtocolReadLocalFile, shouldDownloadMediaForSend, shouldClampDownloadToInlineLimit, auditMediaConfig, getInlineMaterializeDir, getInlineMaterializeLogger, configureInlineImageMaxBytes, getInlineImageMaxBytes, configureLargeImagePolicy, getLargeImagePolicy, shouldCompressOnFirstSend, canCompressOnRetry, markProtocolLocalFileUnavailable, resetProtocolLocalFileUnavailable } from './lib/media-inline';
 import { configureMediaFetchConcurrency, getMediaFetchConcurrency, normalizeMediaFetchConcurrency, resetMediaFetchConcurrency, mapWithConcurrency, runThunksWithConcurrency } from './lib/media-fetch';
+import { prepareMediaParams, localFileToInline, isLocalFileRef, isUnreadableLocalFileError, isOversizedPayloadError } from './lib/media-transport';
 import {
   mkBuildNestedForwardOb11Node,
   mkConvertForwardContentToSnowLuma,
@@ -188,6 +189,13 @@ function 媒体路径(input) {
   }
   if (!local) return s;
 
+  // 协议端在 Docker 容器里读不到宿主盘（配置「读不到」或运行时已自动判定）：
+  // 小体积本地文件直接自包含内联，绝不把 /root/kakake/... 这种宿主路径下发出去。
+  // 超过上限的仍由发送前的 prepareMediaParams 读取并压成 JPEG 后内联。
+  if (!canProtocolReadLocalFile() && getMediaInlineLimitBytes() <= 0) {
+    const 兜底内联 = 本地媒体转base64(local, getInlineImageMaxBytes());
+    if (兜底内联) return 兜底内联;
+  }
   // 开了内联且文件够小 → 内联；否则回退本地路径
   const 内联上限 = getMediaInlineLimitBytes();
   if (内联上限 > 0) {
@@ -246,12 +254,42 @@ function 构建发送参数(event, message) {
   return params;
 }
 
+/**
+ * 发送前统一预处理媒体段。
+ *   · 默认「原图优先」：首发不碰像素数据，只在必要时换承载形态（file:// → base64://）；
+ *   · 只有协议端真的拒绝后，才在重试里把超限大图压成 JPEG；
+ *   · 「压缩优先」策略会在首发就压；「不压缩」策略任何情况都不压。
+ * 返回原始 params 的克隆；任何异常都按原样发送，绝不因预处理丢消息。
+ */
+async function mkPrepareSendParams(params, forceInline = false, compressInline = true) {
+  try {
+    const r = await prepareMediaParams(params, { forceInline, compressInline });
+    if (r.changed && 当前上下文?.logger?.info) {
+      const bits = [];
+      if (r.compressed) bits.push(`压缩 ${r.compressed} 张大图`);
+      if (r.inlined) bits.push(`本地路径转内联 ${r.inlined} 个（原图字节不变）`);
+      if (bits.length) {
+        当前上下文.logger.info(`[媒体] 发送前${bits.join('、')}`);
+      }
+    }
+    return r;
+  } catch (e) {
+    当前上下文?.logger?.warn?.('[媒体] 发送前预处理失败，按原样发送:', e?.message || e);
+    return { params, changed: false, hasLocalRef: false, hasOversizedInline: false, compressed: 0, inlined: 0 };
+  }
+}
+
 async function 调用发送(params, options = {}) {
   const ctx = 当前上下文;
   if (!ctx?.actions) return null;
   const throwOnError = options.throwOnError === true;
+  // 默认「原图优先」：首发不压缩，画质与原文件完全一致
+  const 首发压缩 = shouldCompressOnFirstSend();
+  const 预处理 = await mkPrepareSendParams(params, false, 首发压缩);
+  const 首发参数 = 预处理.params;
+  const callSend = (p) => ctx.actions.call("send_msg", p, ctx.adapterName, ctx.pluginManager.config);
   try {
-    return await ctx.actions.call("send_msg", params, ctx.adapterName, ctx.pluginManager.config);
+    return await callSend(首发参数);
   } catch (error) {
     // send_msg 超时绝大多数是「回包晚于框架等待上限」，消息其实已投递成功，
     // 表现为先报一条错、十几秒后消息正常可见。按 error 记会让人误判为发送失败，
@@ -263,10 +301,52 @@ async function 调用发送(params, options = {}) {
       if (throwOnError) throw error;
       return null;
     }
-    if (ctx.logger?.error) {
-      ctx.logger.error("发送消息失败:" + (mkEnoentLocalFileHint(error) || ""), error);
+
+    let 最终错误 = error;
+    let 当前参数 = 首发参数;
+
+    // ① 协议端读不到宿主本地路径 → 只换承载形态，像素数据仍是原图字节
+    const 本地路径失败 = 预处理.hasLocalRef && isUnreadableLocalFileError(error);
+    if (本地路径失败) {
+      // 确定性失败：协议端容器内没有这个宿主路径。记为运行时事实，
+      // 之后渲染图不再落盘成 file://，从第一条失败起自愈。
+      markProtocolLocalFileUnavailable(error?.message || error, ctx.logger);
+      const 内联 = await mkPrepareSendParams(当前参数, true, 首发压缩);
+      if (内联.changed) {
+        当前参数 = 内联.params;
+        try {
+          const r = await callSend(当前参数);
+          ctx.logger?.info?.('[媒体] 已改用自包含 base64 内联（原图）重发成功');
+          return r;
+        } catch (e2) {
+          最终错误 = e2;
+          ctx.logger?.warn?.('[媒体] 原图内联重发失败:', e2?.message || e2);
+        }
+      }
     }
-    if (throwOnError) throw error;
+
+    // ② 原图帧被协议端拒（载荷过大 / 大图 retcode=100）→ 这一步才压缩
+    const 需要压缩重试 =
+      isOversizedPayloadError(最终错误) ||
+      (预处理.hasOversizedInline && isUnreadableLocalFileError(最终错误));
+    if (需要压缩重试 && canCompressOnRetry()) {
+      const 压缩 = await mkPrepareSendParams(当前参数, 本地路径失败, true);
+      if (压缩.changed) {
+        try {
+          const r = await callSend(压缩.params);
+          ctx.logger?.info?.('[媒体] 原图被协议端拒绝，已压缩大图后重发成功');
+          return r;
+        } catch (e3) {
+          最终错误 = e3;
+          ctx.logger?.warn?.('[媒体] 压缩后重发仍失败:', e3?.message || e3);
+        }
+      }
+    }
+
+    if (ctx.logger?.error) {
+      ctx.logger.error("发送消息失败:" + (mkEnoentLocalFileHint(最终错误) || ""), 最终错误);
+    }
+    if (throwOnError) throw 最终错误;
     return null;
   }
 }
@@ -289,9 +369,10 @@ function isSendTimeoutError(error) {
  */
 function mkEnoentLocalFileHint(error) {
   const msg = String(error?.message ?? error ?? "");
-  if (!/ENOENT/i.test(msg)) return "";
-  return "｜协议端读不到本地文件：插件与协议端不在同一文件系统（WS 转发 / 容器未挂载 data 目录）。"
-    + "请在 WebUI 将「协议端读本地文件」切为「读不到」，并设置「媒体内联上限」（图片走 base64，大文件改发链接）";
+  if (!/ENOENT|EACCES|EPERM|retcode\s*=?\s*100|API\s*失败/i.test(msg)) return "";
+  return "｜协议端读不到宿主本地文件：咔咔珂与协议端不在同一文件系统（Docker / 容器未挂载 data 目录）。"
+    + "插件已自动改用 base64 内联重试；若仍失败，请在 WebUI「渲染设置 → 协议端读本地文件」切为「读不到（容器）」，"
+    + "或用 mk [3]→[20] 把 kakake 目录以相同路径挂进容器";
 }
 
 function 必填文本(v) {
@@ -829,6 +910,14 @@ async function 发合并消息(event, nodes, preview, opts = {}) {
   const action = isGroup ? "send_group_forward_msg" : "send_private_forward_msg";
   const silent = !!opts.silent;
 
+  // 合并转发节点里也可能含渲染图：默认原图优先，必要时才换形态 / 压缩
+  let 媒体预处理 = null;
+  const 预处理参数 = async (p) => {
+    媒体预处理 = await mkPrepareSendParams(p, false, shouldCompressOnFirstSend());
+    return 媒体预处理.params;
+  };
+  params = await 预处理参数(params);
+
   const callForward = async (p) => {
     try {
       await ctx.actions.call(action, p, ctx.adapterName, ctx.pluginManager.config);
@@ -870,6 +959,36 @@ async function 发合并消息(event, nodes, preview, opts = {}) {
       }
       return true;
     }
+    // 节点里含宿主本地路径且协议端读不到（Docker 未挂载）→ 全部改自包含内联再发一次
+    if (媒体预处理?.hasLocalRef && isUnreadableLocalFileError(error)) {
+      markProtocolLocalFileUnavailable(error?.message || error, ctx.logger);
+      const 重试 = await mkPrepareSendParams(params, true, shouldCompressOnFirstSend());
+      if (重试.changed) {
+        params = 重试.params;
+        try {
+          await callForward(params);
+          合并转发记耗时(ctx, 开始, nodes.length);
+          ctx.logger?.info?.('[合并转发] 已改用 base64 内联（原图）重发成功');
+          return true;
+        } catch (e4) {
+          if (!silent) ctx.logger?.warn?.('[合并转发] 原图内联重发仍失败:', e4?.message || e4);
+          // 原图帧确实被拒才压缩重试（「不压缩」策略下跳过）
+          if (canCompressOnRetry() && (isOversizedPayloadError(e4) || 媒体预处理?.hasOversizedInline)) {
+            const 压缩 = await mkPrepareSendParams(params, true, true);
+            if (压缩.changed) {
+              try {
+                await callForward(压缩.params);
+                合并转发记耗时(ctx, 开始, nodes.length);
+                ctx.logger?.info?.('[合并转发] 已压缩大图后重发成功');
+                return true;
+              } catch (e5) {
+                if (!silent) ctx.logger?.warn?.('[合并转发] 压缩后重发仍失败:', e5?.message || e5);
+              }
+            }
+          }
+        }
+      }
+    }
     // NapCat 内联嵌套被 SL 拒绝（常只有 retcode=1400）→ 改纯 node 列表重试一次
     const canRetryAsSnowLuma =
       !mkIsSnowLumaBackend() &&
@@ -878,6 +997,7 @@ async function 发合并消息(event, nodes, preview, opts = {}) {
     if (canRetryAsSnowLuma) {
       mkMarkSnowLumaBackend(true, ctx);
       ({ params } = buildParams());
+      params = await 预处理参数(params);
       try {
         await callForward(params);
         合并转发记耗时(ctx, 开始, nodes.length);
@@ -923,6 +1043,19 @@ export {
   段有可用媒体,
   configureMediaInlineLimit,
   configureProtocolLocalRead,
+  configureInlineImageMaxBytes,
+  getInlineImageMaxBytes,
+  configureLargeImagePolicy,
+  getLargeImagePolicy,
+  shouldCompressOnFirstSend,
+  canCompressOnRetry,
+  markProtocolLocalFileUnavailable,
+  resetProtocolLocalFileUnavailable,
+  prepareMediaParams,
+  localFileToInline,
+  isLocalFileRef,
+  isUnreadableLocalFileError,
+  isOversizedPayloadError,
   canProtocolReadLocalFile,
   shouldDownloadMediaForSend,
   shouldClampDownloadToInlineLimit,

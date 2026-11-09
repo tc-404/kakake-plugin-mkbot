@@ -55,6 +55,12 @@ export interface MkProcessInfo {
   memory: number;
   memoryMB: string;
   cpuPercent: string;
+  /**
+   * 完整命令行（Linux `ps args` / Windows Win32_Process.CommandLine）。
+   * 协议框架多以 `node /opt/napcat/napcat.mjs` 启动，comm 只有 "node"，
+   * 只按进程名匹配必然漏判，所以识别时同时看 name 与 cmdline。
+   */
+  cmdline?: string;
 }
 
 /** 关键进程：宿主框架 / QQ / 协议框架（MKbot 与宿主同进程，不单独列） */
@@ -90,7 +96,10 @@ export interface MkNetworkInfo {
 
 export interface MkSystemStatusSnapshot {
   systemInfo: MkSystemInfo;
+  /** 按内存降序的前 20 条，供进程排行榜展示 */
   processes: MkProcessInfo[];
+  /** 完整进程表：关键进程要按「最新协议身份」重新解析，不能只看 top 20 */
+  processPool: MkProcessInfo[];
   keyProcesses: MkKeyProcessInfo[];
   network: MkNetworkInfo;
 }
@@ -459,6 +468,8 @@ function parsePsAux(output: string): MkProcessInfo[] {
       memory: memoryKb * 1024,
       memoryMB: (memoryKb / 1024).toFixed(2),
       cpuPercent: parts[2] || '0',
+      // ps aux 从第 11 列起就是完整命令行，顺手带上，省掉一次额外 ps
+      cmdline: parts.slice(10).join(' ').trim() || undefined,
     });
   }
   return processes;
@@ -477,6 +488,61 @@ async function readUnixProcessList(logger?: MkLogger | null): Promise<MkProcessI
   }
   warn(logger, '[系统状态] 获取进程列表失败');
   return [];
+}
+
+/**
+ * 解析 `ps -eo pid=,args=`：pid → 完整命令行。
+ * comm 只给可执行名（且常被截到 15 字符），NapCat / SnowLuma 这类
+ * `node xxx.mjs` 启动的协议端 comm 只有 "node"，必须靠 args 才能认出来。
+ */
+export function parsePsArgs(output: string): Map<string, string> {
+  const map = new Map<string, string>();
+  for (const line of String(output || '').split(/\r?\n/)) {
+    const m = line.trim().match(/^(\d+)\s+(.+)$/);
+    if (!m) continue;
+    const cmd = m[2]!.trim();
+    if (cmd) map.set(m[1]!, cmd);
+  }
+  return map;
+}
+
+/** Windows 侧等价物：Win32_Process.CommandLine（Get-Process 不带这个字段） */
+export function parseWindowsCmdlines(output: string): Map<string, string> {
+  const map = new Map<string, string>();
+  try {
+    const parsed = JSON.parse(String(output || '[]'));
+    const rows = Array.isArray(parsed) ? parsed : parsed ? [parsed] : [];
+    for (const raw of rows) {
+      const p = raw as { ProcessId?: unknown; CommandLine?: unknown };
+      const pid = String(p?.ProcessId ?? '').trim();
+      const cmd = String(p?.CommandLine ?? '').trim();
+      if (pid && cmd) map.set(pid, cmd);
+    }
+  } catch {
+    /* 命令不可用 / 输出不是 JSON：留空即可，识别逻辑会退回只按进程名 */
+  }
+  return map;
+}
+
+async function readProcessCmdlines(platform: string): Promise<Map<string, string>> {
+  if (platform === 'win32') {
+    const out = await runPowerShell(
+      'Get-CimInstance Win32_Process | Select-Object ProcessId,CommandLine | ConvertTo-Json -Compress',
+    );
+    return out ? parseWindowsCmdlines(out) : new Map();
+  }
+  const out = await runCommand('ps', ['-eo', 'pid=,args=']);
+  return out ? parsePsArgs(out) : new Map();
+}
+
+/** 把命令行并进进程表；取不到时静默跳过，绝不因此丢掉整份进程数据 */
+export function attachProcessCmdlines(list: MkProcessInfo[], cmdlines: Map<string, string>): MkProcessInfo[] {
+  if (!cmdlines?.size) return list;
+  for (const p of list) {
+    const cmd = cmdlines.get(String(p.pid));
+    if (cmd) p.cmdline = cmd;
+  }
+  return list;
 }
 
 // ================== 网络流量 ==================
@@ -677,8 +743,13 @@ export async function getSystemInfo(logger?: MkLogger | null): Promise<MkSystemI
 /** 进程列表（按内存降序；异步，不阻塞事件循环） */
 async function collectProcesses(logger?: MkLogger | null): Promise<MkProcessInfo[]> {
   try {
-    const processes =
-      os.platform() === 'win32' ? await readWindowsProcessList(logger) : await readUnixProcessList(logger);
+    const platform = os.platform();
+    // 进程表与「pid → 完整命令行」并行采集；命令行取不到不影响原有数据
+    const [processes, cmdlines] = await Promise.all([
+      platform === 'win32' ? readWindowsProcessList(logger) : readUnixProcessList(logger),
+      readProcessCmdlines(platform),
+    ]);
+    attachProcessCmdlines(processes, cmdlines);
     return processes.sort((a, b) => b.memory - a.memory);
   } catch (error) {
     warn(logger, '[系统状态] 获取进程列表失败:', error);
@@ -692,23 +763,133 @@ export async function getProcessList(logger?: MkLogger | null): Promise<MkProces
 }
 
 // ================== 关键进程 ==================
+//
+// 旧实现只按「进程名」匹配，且规则里没有 SnowLuma。实际部署里：
+//   · NapCat 注入 QQNT → 进程叫 QQ.exe / qq，被 QQ 规则先认走；
+//   · NapCat shell 独立启动 → `node /opt/napcat/napcat.mjs`，comm 只有 "node"；
+//   · SnowLuma → 规则里压根没有它，Docker 里宿主 ps 又只看得到容器的 shim；
+//   · 咔咔珂与协议端分处不同容器 / 不同机器时，协议端进程根本不在本机进程表里。
+// 于是「协议框架」这一行无论 NapCat / SnowLuma、Docker / shell 都恒为「未检测到」。
+//
+// 现在改成双数据源：
+//   ① 进程表：name + cmdline 一起匹配（能读就显示真实 PID / 内存 / CPU）；
+//   ② 协议端自报的 get_version_info.app_name：跨容器、跨机器、权限受限都拿得到，
+//      进程不可见时用「框架名 + 版本」兜底，不再笼统写「未检测到」。
+// ---------------------------------------------------------------------------
 
-const KEY_PROCESS_RULES: { key: MkKeyProcessInfo['key']; label: string; patterns: RegExp[] }[] = [
-  { key: 'host', label: '宿主框架', patterns: [/kakake/i, /咔咔珂/, /mk-?jsbot/i] },
-  { key: 'qq', label: 'QQ', patterns: [/^qq(\.exe)?$/i, /[\\/]qq(\.exe)?$/i, /^linuxqq$/i, /qq(\.exe)?$/i] },
-  {
-    key: 'protocol',
-    label: '协议框架',
-    patterns: [/napcat/i, /llonebot/i, /lagrange/i, /shamrock/i, /go-?cqhttp/i, /onebot/i, /chronocat/i],
-  },
+/** 协议端自报身份（get_version_info） */
+export interface MkProtocolIdentity {
+  /** 归一化后的展示名，如 SnowLuma / NapCat / Lagrange */
+  name: string;
+  version: string;
+  /** 原始 app_name */
+  appName: string;
+  protocolVersion: string;
+}
+
+const PROTOCOL_APP_NAMES: { re: RegExp; name: string }[] = [
+  { re: /snow[-_\s]?luma/i, name: 'SnowLuma' },
+  { re: /napcat/i, name: 'NapCat' },
+  { re: /lagrange/i, name: 'Lagrange' },
+  { re: /llonebot|lite[-_\s]?loader/i, name: 'LLOneBot' },
+  { re: /go[-_\s]?cqhttp/i, name: 'go-cqhttp' },
+  { re: /chronocat/i, name: 'Chronocat' },
+  { re: /shamrock/i, name: 'OpenShamrock' },
+  { re: /opq[-_\s]?bot|opq/i, name: 'OPQBot' },
+  { re: /mirai/i, name: 'Mirai' },
+  { re: /koishi/i, name: 'Koishi' },
+  { re: /onebot/i, name: 'OneBot' },
 ];
 
+export function normalizeProtocolIdentity(
+  appName: unknown,
+  appVersion?: unknown,
+  protocolVersion?: unknown,
+): MkProtocolIdentity | null {
+  const raw = String(appName ?? '').trim();
+  const version = String(appVersion ?? '').trim();
+  const protocol = String(protocolVersion ?? '').trim();
+  if (!raw) {
+    // 部分实现不返回 app_name，但会返回 protocol_version：至少确认协议端在线
+    if (protocol) return { name: 'OneBot 协议端', version, appName: '', protocolVersion: protocol };
+    return null;
+  }
+  const matched = PROTOCOL_APP_NAMES.find((x) => x.re.test(raw));
+  return {
+    name: matched ? matched.name : raw.slice(0, 40),
+    version,
+    appName: raw,
+    protocolVersion: protocol,
+  };
+}
+
+/** 用户自定义进程关键字（config.json「协议框架进程关键字」，逗号/分号/空白分隔） */
+export function parseProtocolKeywords(raw: unknown): string[] {
+  return String(raw ?? '')
+    .split(/[,，;；\s]+/)
+    .map((s) => s.trim())
+    .filter(Boolean)
+    .slice(0, 12);
+}
+
+function escapeRegExp(s: string): string {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+/** 强特征：进程名或命令行里出现这些，基本可确定是协议端 */
+const PROTOCOL_STRONG_PATTERNS: RegExp[] = [
+  /snow[-_\s]?luma/i,
+  /napcat/i,
+  /llonebot/i,
+  /lagrange/i,
+  /shamrock/i,
+  /go[-_\s]?cqhttp/i,
+  /chronocat/i,
+  /opq[-_\s]?bot/i,
+  /mirai/i,
+  /qqnt/i,
+  /lite[-_\s]?loader/i,
+];
+/** 弱特征：太泛，只在进程名上兜底，避免把任意含 onebot 字样的命令行误判 */
+const PROTOCOL_WEAK_PATTERNS: RegExp[] = [/onebot/i, /cqhttp/i];
+
+type ProcessRule = {
+  key: MkKeyProcessInfo['key'];
+  label: string;
+  patterns: RegExp[];
+  /** name = 只测进程名（QQ 规则带 $ 锚点）；both = 进程名 + 完整命令行 */
+  scope: 'name' | 'both';
+};
+
+const KEY_PROCESS_RULES: ProcessRule[] = [
+  { key: 'host', label: '宿主框架', patterns: [/kakake/i, /咔咔珂/, /mk-?jsbot/i], scope: 'both' },
+  {
+    key: 'qq',
+    label: 'QQ',
+    patterns: [/^qq(\.exe)?$/i, /[\\/]qq(\.exe)?$/i, /^linuxqq$/i, /qq(\.exe)?$/i],
+    scope: 'name',
+  },
+  { key: 'protocol', label: '协议框架', patterns: PROTOCOL_STRONG_PATTERNS, scope: 'both' },
+];
+
+function processHaystack(p: MkProcessInfo, scope: 'name' | 'both'): string {
+  const name = String(p.name || '');
+  return scope === 'both' ? `${name}\n${String(p.cmdline || '')}` : name;
+}
+
 /** 同类多进程取内存占用最大的那个 */
-function matchProcess(list: MkProcessInfo[], patterns: RegExp[]): MkProcessInfo | null {
+function matchProcess(
+  list: MkProcessInfo[],
+  patterns: RegExp[],
+  scope: 'name' | 'both' = 'both',
+  excludePids?: Set<string>,
+): MkProcessInfo | null {
   let best: MkProcessInfo | null = null;
+  if (!patterns.length) return null;
   for (const p of list) {
-    const name = String(p.name || '');
-    if (!patterns.length || !patterns.some((re) => re.test(name))) continue;
+    if (excludePids?.has(String(p.pid))) continue;
+    const hay = processHaystack(p, scope);
+    if (!patterns.some((re) => re.test(hay))) continue;
     if (!best || p.memory > best.memory) best = p;
   }
   return best;
@@ -728,20 +909,64 @@ function selfProcessRow(list: MkProcessInfo[]): MkProcessInfo {
   };
 }
 
+export interface MkKeyProcessOptions {
+  /** 协议端自报身份；进程不可见时用它兜底显示框架名与版本 */
+  protocolIdentity?: MkProtocolIdentity | null;
+  /** 用户自定义进程关键字（字面量，不区分大小写） */
+  customPatterns?: string[];
+  /** 宿主框架展示名：host 行落到「同宿主进程」时用 */
+  hostLabel?: string;
+}
+
 /**
  * 从完整进程表中挑出三类关键进程：宿主框架 / QQ / 协议框架。
  * MKbot 与宿主框架共用同一个 Node 进程，所以不再单独列一行。
  */
-export function resolveKeyProcesses(list: MkProcessInfo[]): MkKeyProcessInfo[] {
+export function resolveKeyProcesses(
+  list: MkProcessInfo[],
+  options: MkKeyProcessOptions = {},
+): MkKeyProcessInfo[] {
   const self = selfProcessRow(list);
   const rows: MkKeyProcessInfo[] = [];
+  const custom = (options.customPatterns || [])
+    .map((s) => String(s || '').trim())
+    .filter(Boolean)
+    .map((s) => new RegExp(escapeRegExp(s), 'i'));
+  const excludeSelf = new Set([String(self.pid)]);
+
   for (const rule of KEY_PROCESS_RULES) {
-    const hit = matchProcess(list, rule.patterns) || (rule.key === 'host' ? self : null);
+    let hit: MkProcessInfo | null;
+    if (rule.key === 'protocol') {
+      // 先强特征（含用户自定义），再弱特征；排除插件自身进程，避免自我误判
+      hit =
+        matchProcess(list, [...rule.patterns, ...custom], 'both', excludeSelf) ||
+        matchProcess(list, PROTOCOL_WEAK_PATTERNS, 'name', excludeSelf);
+    } else {
+      hit = matchProcess(list, rule.patterns, rule.scope);
+    }
+    if (rule.key === 'host' && !hit) hit = self;
+
     if (!hit) {
+      // 协议端进程不在本机进程表（Docker 跨容器 / 远程 WS / 权限受限）时，
+      // 用协议自报身份兜底：仍然告诉用户「连的是谁」，而不是一句「未检测到」。
+      if (rule.key === 'protocol' && options.protocolIdentity) {
+        const id = options.protocolIdentity;
+        const ver = id.version ? ` v${id.version}` : '';
+        rows.push({
+          key: 'protocol',
+          label: rule.label,
+          name: `${id.name}${ver} · 进程不可见`,
+          pid: '—',
+          memoryMB: '—',
+          cpuPercent: '—',
+          running: true,
+        });
+        continue;
+      }
       rows.push({
         key: rule.key,
         label: rule.label,
-        name: '未检测到',
+        name: rule.key === 'protocol' ? '未检测到（可配置关键字）' : '未检测到',
         pid: '—',
         memoryMB: '—',
         cpuPercent: '—',
@@ -749,10 +974,15 @@ export function resolveKeyProcesses(list: MkProcessInfo[]): MkKeyProcessInfo[] {
       });
       continue;
     }
+
+    const isSelfHost = rule.key === 'host' && String(hit.pid) === String(self.pid);
+    const name = isSelfHost && options.hostLabel
+      ? `同宿主进程（${options.hostLabel}）`
+      : String(hit.name || 'Unknown');
     rows.push({
       key: rule.key,
       label: rule.label,
-      name: String(hit.name || 'Unknown'),
+      name,
       pid: String(hit.pid || '—'),
       memoryMB: String(hit.memoryMB || '0'),
       cpuPercent: String(hit.cpuPercent || '0'),
@@ -788,6 +1018,8 @@ export function getSystemStatusSnapshot(
     const value: MkSystemStatusSnapshot = {
       systemInfo,
       processes: allProcesses.slice(0, PROCESS_KEEP),
+      // 调用方拿到协议自报身份后会用全量表重新解析关键进程，不受 top20 截断影响
+      processPool: allProcesses,
       keyProcesses: resolveKeyProcesses(allProcesses),
       network,
     };

@@ -129,9 +129,35 @@ import {
 } from './data-fs';
 import { parseImageDataUrl, resolveEffectiveBgAbs } from './lib/bg-edit';
 import { registerBgEditWebGetRoutes, registerBgEditWebPostRoutes } from './auth/bg-edit-web';
+import { registerXuhuoWebGetRoutes, registerXuhuoWebPostRoutes } from './auth/xuhuo-web';
+import {
+  XUHUO_FRIEND_SWITCH,
+  ensureXuhuoConfigFile,
+  isXuhuoImageUsable,
+  isXuhuoUrl,
+  markXuhuoFailed,
+  markXuhuoSent,
+  newXuhuoId,
+  nextXuhuoFireAt,
+  pickXuhuoImages,
+  pickXuhuoTexts,
+  planXuhuoMessages,
+  pruneXuhuoState,
+  readXuhuoConfig,
+  readXuhuoDayState,
+  recordXuhuoHistory,
+  resolveXuhuoImageAbs,
+  resolveXuhuoImageValue,
+  writeXuhuoConfig,
+  xuhuoDateKey,
+  xuhuoDayIndex,
+  xuhuoStateFile,
+  xuhuoTodayFireAt,
+} from './lib/xuhuo';
 import { 发视频, 发语音, 发卡片, 发音乐卡片, 发合并消息, 发消息, 设消息表情, bindBotCtx, isSendTimeoutError, 段_文本, 段_图片, 段_视频, 段_语音, 段_文件, 段_Json, 段_表情, 段_引用, 段_艾特, 媒体路径, 段有可用媒体, 合并节点, 嵌套合并节点, 合并引用, 合并图文节点, 合并视文节点, 合并图片节点, 合并预览 } from './BOT';
 import { createDownloadTimeout, MK_MEDIA_INLINE_MAX_BYTES } from './lib/download-timeout';
-import { configureMediaInlineLimit, configureProtocolLocalRead, configureInlineMaterializeDir, isMediaInlineEnabled, shouldClampDownloadToInlineLimit, shouldDownloadMediaForSend, auditMediaConfig } from './lib/media-inline';
+import { configureMediaInlineLimit, configureProtocolLocalRead, configureInlineMaterializeDir, configureInlineImageMaxBytes, configureLargeImagePolicy, isMediaInlineEnabled, shouldClampDownloadToInlineLimit, shouldDownloadMediaForSend, auditMediaConfig, markProtocolLocalFileUnavailable } from './lib/media-inline';
+import { localFileToInline, isLocalFileRef, isUnreadableLocalFileError } from './lib/media-transport';
 import { configureMediaFetchConcurrency, getMediaFetchConcurrency, runThunksWithConcurrency } from './lib/media-fetch';
 import { callLocalVideoApi, callLocalImghostApi, callLocalMusicSignApi } from './lib/api/loader';
 import { isImageRenderEnabled, getRenderMode } from './lib/image-render';
@@ -139,8 +165,12 @@ import {
   getSystemInfo as collectSystemInfo,
   getProcessList as collectProcessList,
   getSystemStatusSnapshot,
+  resolveKeyProcesses,
+  normalizeProtocolIdentity,
+  parseProtocolKeywords,
 } from './lib/system-status';
 import { getTodayChatLogStats } from './lib/kakake-log-stats';
+import { runParallelSafe, mkElapsedSince } from './lib/status-parallel';
 import { renderMenuWithSharp, resetSharpModuleCache } from './lib/sharp-render';
 import { renderSignInWithSharp } from './lib/signin-sharp-render';
 import { renderWalletWithSharp } from './lib/wallet-sharp-render';
@@ -2194,6 +2224,58 @@ type MkStatusAccount = {
 };
 
 /**
+ * 「运行状态」关键进程 → 协议框架身份。
+ *
+ * 协议端进程不一定在本机进程表里（Docker 跨容器 / 远程 WS / 权限受限），
+ * 而且 NapCat 常注入 QQ 进程、或由 `node napcat.mjs` 启动，comm 只有 "node"。
+ * 所以以协议端自报的 get_version_info.app_name 为准（OneBot 标准接口，跨容器也有效），
+ * 进程表只作为「能不能顺带显示 PID / 内存 / CPU」的补充。
+ * 按连接缓存 5 分钟，避免每次「运行状态」都打一次接口。
+ */
+let mkStatusProtocolIdentityCache: { key: string; at: number; value: any; has: boolean } = {
+  key: '', at: 0, value: null, has: false,
+};
+
+async function mkResolveStatusProtocolIdentity(ctx, logger): Promise<any> {
+  const key = String(
+    ctx?.connectionId ?? ctx?.frameworkEnv?.connectionId ?? ctx?.frameworkEnv?.frameworkId ?? 'default',
+  );
+  const now = Date.now();
+  const hit = mkStatusProtocolIdentityCache;
+  // 取不到身份也缓存，避免协议端不支持该接口时每次「运行状态」都打一次失败请求
+  if (hit.has && hit.key === key && now - hit.at < 5 * 60 * 1000) return hit.value;
+
+  let identity = null;
+  try {
+    const raw: any = await BOTAPI(ctx, 'get_version_info', {});
+    const d = raw?.data && typeof raw.data === 'object' ? raw.data : raw;
+    identity = normalizeProtocolIdentity(
+      d?.app_name ?? d?.appName,
+      d?.app_version ?? d?.appVersion,
+      d?.protocol_version ?? d?.protocolVersion,
+    );
+  } catch (e) {
+    logger?.warn?.('[运行状态] get_version_info 读取失败，改用宿主提示识别协议端:', e?.message || e);
+  }
+  if (!identity) {
+    const fw: any = ctx?.frameworkEnv || {};
+    const hint = String(fw.protocolBackend ?? fw.backendType ?? fw.backend_type ?? fw.obBackend ?? '').trim();
+    identity = normalizeProtocolIdentity(hint, fw.frameworkVersion);
+  }
+  if (!identity) {
+    // 接口和宿主都没给名字时，用已有的协议后端探测结论 / 用户手动指定兜底
+    const 强制后端 = String(readB('config.json', 'mkbot_protocol_backend', '') || '').trim().toLowerCase();
+    if (强制后端 === 'snowluma' || (强制后端 !== 'napcat' && mkIsSnowLumaBackend())) {
+      identity = { name: 'SnowLuma', version: '', appName: '', protocolVersion: '' };
+    } else if (强制后端 === 'napcat') {
+      identity = { name: 'NapCat', version: '', appName: '', protocolVersion: '' };
+    }
+  }
+  mkStatusProtocolIdentityCache = { key, at: now, value: identity, has: true };
+  return identity;
+}
+
+/**
  * 读取咔咔珂本机连接列表（/api/local/connections），供「运行状态」置顶卡做多账号展示。
  * 只在咔咔珂宿主下尝试，端口优先取宿主的 WebUI 端口；取不到就返回空数组，
  * 调用方会退回「当前账号」单账号展示。
@@ -2207,42 +2289,44 @@ async function fetchKakakeStatusAccounts(ctx, logger): Promise<MkStatusAccount[]
     if (port > 0) bases.push(`http://127.0.0.1:${port}`);
     bases.push("http://127.0.0.1:8787", "http://localhost:8787");
 
-    const seen = new Set();
-    for (const b of bases) {
-      if (!b || seen.has(b)) continue;
-      seen.add(b);
+    // 并发探测所有候选地址：旧版逐个 await，每个 1.5s 超时，最坏白等 4.5s。
+    // 这些都是本机端口，同时发请求开销可忽略；成功与否只取第一个有数据的结果。
+    const 候选 = [...new Set(bases.filter(Boolean))];
+    const 格式化连接 = (c) => {
+      const qq = String(c.qq || "").trim();
+      const name = String(c.name || "").trim() || (qq ? `QQ ${qq}` : "未知账号");
+      return {
+        qq,
+        appId: String(c.appId || "").trim(),
+        name,
+        avatar: String(c.avatar || "").trim(),
+        typeText: String(c.typeText || "").trim(),
+        directionText: String(c.directionText || "").trim(),
+        statusText: String(c.statusText || "").trim(),
+        phase: String(c.phase || "").trim(),
+        connected: c.connected !== false,
+      };
+    };
+    const 结果 = await Promise.all(候选.map(async (b) => {
+      const ctrl = new AbortController();
+      const t = setTimeout(() => ctrl.abort(), 900);
       try {
-        const ctrl = new AbortController();
-        const t = setTimeout(() => ctrl.abort(), 1500);
         const r = await fetch(`${b}/api/local/connections`, { signal: ctrl.signal });
-        clearTimeout(t);
-        if (!r || !r.ok) continue;
+        if (!r || !r.ok) return [];
         const j = await r.json();
-        if (!j || j.ok !== true || !Array.isArray(j.connections)) continue;
-
-        const list = j.connections
+        if (!j || j.ok !== true || !Array.isArray(j.connections)) return [];
+        return j.connections
           .filter((c) => c && (c.type === "onebot" || c.type === "qq_official"))
           .slice(0, 40)
-          .map((c) => {
-            const qq = String(c.qq || "").trim();
-            const name = String(c.name || "").trim() || (qq ? `QQ ${qq}` : "未知账号");
-            return {
-              qq,
-              appId: String(c.appId || "").trim(),
-              name,
-              avatar: String(c.avatar || "").trim(),
-              typeText: String(c.typeText || "").trim(),
-              directionText: String(c.directionText || "").trim(),
-              statusText: String(c.statusText || "").trim(),
-              phase: String(c.phase || "").trim(),
-              connected: c.connected !== false,
-            };
-          });
-        if (list.length) return list;
+          .map(格式化连接);
       } catch (_e) {
-        /* 试下一个基址 */
+        return []; /* 该地址不通，其它地址的结果照常返回 */
+      } finally {
+        clearTimeout(t);
       }
-    }
+    }));
+    const 命中 = 结果.find((list) => list && list.length);
+    if (命中) return 命中;
   } catch (e) {
     try {
       logger?.warn?.("[运行状态] 读取本机连接列表失败，已退回单账号展示:", e?.message || String(e));
@@ -4357,6 +4441,27 @@ async function BOTAPI(ctx, action, params) {
   } catch (error) {
     if (typeof error === "object" && error.message && error.message.includes("No data returned")) {
       return mkAdaptBotApiResult(action, { status: "ok", retcode: 0, data: null });
+    }
+    // upload_private_file / upload_group_file 同样会把「宿主机本地路径」交给协议端读：
+    // Docker 部署下协议端容器内没有 /root/kakake/数据备份/xxx.zip → retcode=100。
+    // 小文件改自包含 base64:// 重传一次，并把该事实记入运行时状态（后续图片自动走内联）。
+    if (
+      /^upload_(private|group)_file$/i.test(String(action)) &&
+      typeof p.file === "string" &&
+      isLocalFileRef(p.file) &&
+      isUnreadableLocalFileError(error)
+    ) {
+      const inline = localFileToInline(p.file, 8 * 1024 * 1024);
+      if (inline) {
+        markProtocolLocalFileUnavailable(error?.message || error, logger);
+        logger?.info?.(`[BOTAPI] ${action} 协议端读不到宿主文件，改走 base64 内联重传`);
+        try {
+          const r2 = await ctx.actions.call(action, { ...p, file: inline }, ctx.adapterName, ctx.pluginManager.config);
+          return mkAdaptBotApiResult(action, r2);
+        } catch (e2) {
+          logger?.warn?.(`[BOTAPI] ${action} 内联重传仍失败:`, e2?.message || e2);
+        }
+      }
     }
     logger?.warn?.(`[BOTAPI] ${action} 异常:`, error?.message || error);
     throw error;
@@ -10018,7 +10123,7 @@ if(message == "事件管理"){
         "违禁检测":"即违禁词系统，目前可:撤回/禁言/撤回禁言；另支持全局违禁词库（所有群共用，仅后台维护），本群发送「开启全局违禁词处理机制」即可参与，命中全局词优先处理，可选跟随全局惩罚（禁言/撤回/踢出，可多选）",
         "进阶检测":"违禁检测的高级版，支持检测合并转发消息里面的文本消息进行匹配违禁词",
         "发言统计":"开启后即刻起记录数量，但如果快速刷屏可能会导致写文件频繁直接重置文件！",
-        "群聊续火":"字面意思，当前版本仅为文本续火，当然也可以用一些特殊手段强行让他兼容添加图片",
+        "群聊续火":"定时续火：群聊/私聊各自独立时间与文案池，支持图片库、随机/顺序/固定/全部取图、按天轮换或全部发送、图文合并；发送「管理续火」查看全部指令",
         "视频解析":"目前支持哔哩哔哩、抖音、小红书、快手、YouTube、TikTok的视频解析，分辨率有点低，接口也有点慢",
         "问答系统":"支持本群/全局/私聊词库；全局优先；群聊须开本事件，私聊已授权即生效；答案支持文字/表情/图片（可纯图）；艾特记为@昵称；全局与私聊仅主人可改",
         "入群验证":"是成功进群后的验证，默认随机数字，支持随机字母/随机算式；默认5次机会，300秒内完成；配合「禁言免验」可在全体禁言时跳过",
@@ -13894,39 +13999,84 @@ if(message === "运行状态"){
     // ================== 检 ==================
     let 发送方式 = isImageRenderEnabled(readB);
     
-    const dp = await BOTAPI(ctx, "get_login_info", {});
     // ================== 检 ==================
+    // 分段耗时日志：让「到底慢在哪」直接可见，不用再靠猜
+    const 命令起 = Date.now();
+    const 耗时 = { 采集: 0, 渲染: 0, 发送: 0 };
+    const 输出耗时 = (备注 = "") => {
+        try {
+            logger?.info?.(
+                `[运行状态] 耗时明细 采集=${耗时.采集}ms 渲染=${耗时.渲染}ms 发送=${耗时.发送}ms ` +
+                `总计=${mkElapsedSince(命令起)}ms${备注}`,
+            );
+        } catch (_e) {}
+    };
     try {
-        // 获取系统信息（异步采集，带 3s 快照缓存与单飞复用，不阻塞事件循环）
-        const { systemInfo, processes, keyProcesses, network } = await getSystemStatusSnapshot(logger);
-    
+        const 需要图片 = 发送方式 != false;
+        const 需要Sharp = 需要图片 && getRenderMode(readB) === "sharp";
+        const 日志统计参数 = {
+            dataPath: getDataPath(),
+            pluginDir: PLUGIN_DIR,
+            pluginPath: String(ctx?.pluginPath || ""),
+        };
+        // 旧版把数据源一个一个 await，7~8 秒是各段耗时相加的结果。
+        // 这些采集互不依赖（只有渲染才需要它们的结果），一次性并行启动：
+        // 总耗时 ≈ 最慢的一项。单个数据源失败只回落自己的兜底值，不拖垮整条命令。
+        const 数据 = await runParallelSafe<any>([
+            { key: "login", run: () => BOTAPI(ctx, "get_login_info", {}), fallback: {} },
+            { key: "snapshot", run: () => getSystemStatusSnapshot(logger), fallback: null },
+            {
+                key: "identity",
+                run: () => 需要Sharp ? mkResolveStatusProtocolIdentity(ctx, logger) : Promise.resolve(null),
+                fallback: null,
+            },
+            {
+                key: "chatStats",
+                run: () => 需要图片 ? getTodayChatLogStats(日志统计参数, logger) : Promise.resolve(null),
+                fallback: null,
+            },
+            {
+                key: "accounts",
+                run: () => 需要图片 ? fetchKakakeStatusAccounts(ctx, logger) : Promise.resolve([]),
+                fallback: [],
+            },
+        ], (k, e) => {
+            try { logger?.warn?.(`[运行状态] ${k} 采集失败，已使用兜底值:`, e?.message || e); } catch (_e) {}
+        });
+        耗时.采集 = mkElapsedSince(命令起);
+        const 渲染起 = Date.now();
+
+        // processPool 是完整进程表；关键进程要叠加「协议端自报身份」后重新解析，
+        // 不能用快照里那份只按进程名算出来的 keyProcesses（跨容器时恒为未检测到）。
+        const 状态快照 = 数据.snapshot;
+        if (!状态快照) throw new Error("系统状态快照采集失败");
+        const { systemInfo, processes, network } = 状态快照;
+
         // 获取账号信息
-        const botQQ = dp["user_id"];
-        const botName = dp["nickname"];
-    
+        const dp = 数据.login || {};
+        const botQQ = dp["user_id"] ?? "";
+        const botName = dp["nickname"] ?? "";
+
         // 获取群聊和好友数量
         let groupCount = 0;
         let friendCount = 0;
         // Sharp 卡片已不再展示「群聊 / 好友」，只有文本模式与 HTML 模板要用到，
-        // 所以改成延迟获取：走 Sharp 且渲染成功时，这两个请求完全不发。
+        // 所以改成延迟获取；真要用时两个接口也并行，不再一前一后等两次往返。
         const 取群友计数 = async () => {
-            try {
-                const friendList = await BOTAPI(ctx, "get_friend_list", {});
-                friendCount = (friendList.length || 0);
-            }catch (e){
-                logger.error("获取好友列表失败:", e);
-            }
-            try {
-                const groupList = await BOTAPI(ctx, "get_group_list", {});
-                groupCount = (groupList.length || 0);
-            }catch (e){
-                logger.error("获取群聊列表失败:", e);
-            }
+            const r = await runParallelSafe<any>([
+                { key: "friend", run: () => BOTAPI(ctx, "get_friend_list", {}), fallback: null },
+                { key: "group", run: () => BOTAPI(ctx, "get_group_list", {}), fallback: null },
+            ], (k, e) => {
+                try { logger?.warn?.(`[运行状态] ${k} 列表获取失败:`, e?.message || e); } catch (_e) {}
+            });
+            friendCount = Number(r.friend?.length ?? 0) || 0;
+            groupCount = Number(r.group?.length ?? 0) || 0;
         };
     
         // ================== 文本版本 ==================
         if(发送方式 == false){
             await 取群友计数();
+            耗时.渲染 = mkElapsedSince(渲染起); // 文本版：取群友计数即这段的全部耗时
             // 构建简洁版文本
             let 文本消息 = `══════════════`;
             文本消息 += `\n【运行状态】`;
@@ -13950,13 +14100,18 @@ if(message === "运行状态"){
             文本消息 += `\n - 总接收: ${formatBytes(Number(network?.rxTotal || 0))}`;
             文本消息 += `\n - 总发送: ${formatBytes(Number(network?.txTotal || 0))}`;
             文本消息 += `\n══════════════`;
+            const 文本发送起 = Date.now();
             await 发消息(event, [段_引用(event.message_id), 段_文本(`${文本消息}`)]);
+            耗时.发送 = mkElapsedSince(文本发送起);
+            输出耗时(" (文本版)");
             return null;
         }
         
         // ================== 图片版本 ==================
         const useLocalStatusBg = mkIsKakakeLikeFramework(ctx) && 发送方式 != false;
-        const statusBgCss = resolveStatusBackgroundImageCss(ctx, 发送方式, true);
+        // resolveStatusBackgroundImageCss 会把整张背景图同步读成 data URL；
+        // Sharp 走 bgLocalPath，根本用不到 CSS 版，别白读一遍大文件。
+        const statusBgCss = 需要Sharp ? "" : resolveStatusBackgroundImageCss(ctx, 发送方式, true);
         const templateData = {
             name: String(botName),
             QQ: String(botQQ),
@@ -13977,24 +14132,28 @@ if(message === "运行状态"){
         };
 
         let imageData = null;
-        const statusIsSharp = getRenderMode(readB) === "sharp";
+        const statusIsSharp = 需要Sharp;
         // 背景优先级：WebUI 自定义图 → 当前渲染模式的默认图（Sharp 竖版卡为「运势5.png」，HTML 横版为「运行状态.jpg」）
         const statusBgLocal =
             resolveEffectiveBgAbs("status", statusIsSharp ? "sharp" : "html") ||
             resolveDefaultResourceImageAbs(statusIsSharp ? "运势5.png" : "运行状态.jpg");
-        const statusBgDataUrl = defaultResourceImageToDataUrl(statusBgLocal || "运行状态.jpg");
+        // 同样短路：本地背景存在时不需要再编码一份 data URL（同步读盘 + base64）
+        const statusBgDataUrl = statusBgLocal ? "" : defaultResourceImageToDataUrl("运行状态.jpg");
         const statusBgForSharp = statusBgLocal || statusBgDataUrl || templateData.backgroundImageUrl || STATUS_BG_REMOTE_URL;
         if (statusIsSharp) {
             const 启动秒 = Number(readB("config.json", "启动时间", Math.floor(Date.now() / 1000))) || Math.floor(Date.now() / 1000);
             const frameworkId = String(ctx?.frameworkEnv?.frameworkId || "").trim();
             const frameworkName =
                 frameworkId === "kakake" ? "咔咔珂" : frameworkId === "mk-jsbot" ? "MK-JSBot" : "NapCat";
-            // 今日「收 / 发」条数：读宿主框架落盘的当日日志，只算群聊 / 私聊 / 事件
-            const chatStats = await getTodayChatLogStats(
-                { dataPath: getDataPath(), pluginDir: PLUGIN_DIR, pluginPath: String(ctx?.pluginPath || "") },
-                logger,
-            );
-            const 状态账号列表 = await fetchKakakeStatusAccounts(ctx, logger);
+            // 协议身份 / 日志统计 / 账号列表已在采集阶段并行完成，这里只取结果
+            const 协议身份 = 数据.identity;
+            const 关键进程 = resolveKeyProcesses(状态快照.processPool || processes, {
+                protocolIdentity: 协议身份,
+                customPatterns: parseProtocolKeywords(readB("config.json", "协议框架进程关键字", "")),
+                hostLabel: frameworkName,
+            });
+            const chatStats = 数据.chatStats;
+            const 状态账号列表 = 数据.accounts || [];
             imageData = await renderStatusWithSharp({
                 name: templateData.name,
                 qq: templateData.QQ,
@@ -14038,7 +14197,7 @@ if(message === "运行状态"){
                 generatedAt: timeA("y-m-d H:i:s", Math.floor(Date.now() / 1000)),
                 backgroundImageUrl: statusBgForSharp,
                 bgLocalPath: statusBgLocal || "",
-                keyProcesses: (keyProcesses || []).map((p) => ({
+                keyProcesses: (关键进程 || []).map((p) => ({
                     // 宿主框架行显示实际框架名（咔咔珂 / NapCat / MK-JSBot）
                     label: p.key === "host" ? frameworkName : String(p.label || ""),
                     name: String(p.name || "-"),
@@ -14063,6 +14222,13 @@ if(message === "运行状态"){
         await 取群友计数();
         templateData.groupCount = groupCount;
         templateData.friendCount = friendCount;
+        // Sharp 模式采集阶段跳过了 CSS 背景（同步读盘），只有真的回退 HTML 时才补算，
+        // 避免回退后卡片丢背景；正常走 Sharp 的路径完全不付这份 I/O。
+        if (需要Sharp) {
+            const 回退Css = resolveStatusBackgroundImageCss(ctx, 发送方式, true);
+            templateData.backgroundImageCSS = 回退Css;
+            templateData.backgroundImageUrl = extractBgUrlFromCss(回退Css);
+        }
         // 读取文件
         const htmlContent = readA("默认资源/状态.html");
         // 传递
@@ -14090,7 +14256,9 @@ if(message === "运行状态"){
             });
         }
         }
+        耗时.渲染 = mkElapsedSince(渲染起);
         // 输出
+        const 发送起 = Date.now();
         if (imageData) {
             // 发送图片
             await 发消息(event, [
@@ -14100,7 +14268,10 @@ if(message === "运行状态"){
         }else{
             await 发消息(event, [段_引用(event.message_id), 段_文本('渲染失败，请检查 puppeteer 插件是否正常运行')]);
         }
+        耗时.发送 = mkElapsedSince(发送起);
+        输出耗时();
     }catch (error){
+        输出耗时(" (异常)");
         logger.error("系统状态命令错误:", error);
         await 发消息(event, [段_引用(event.message_id), 段_文本(`出错了: ${error.message}`)]);
     }
@@ -14124,6 +14295,11 @@ if(message.match(/^设置(续火)内容([\s\S]*)$/)){
         return null;
     }
     // ================== 写入&输出 ==================
+    const 句子池 = String(内容).split(/\r?\n/).map((s) => s.trim()).filter(Boolean);
+    const 续火配置 = ensureXuhuoConfigFile();
+    续火配置.群聊.文案 = 句子池.length ? 句子池 : [String(内容)];
+    if(!续火配置.私聊.文案.length) 续火配置.私聊.文案 = 续火配置.群聊.文案.slice();
+    writeXuhuoConfig(续火配置);
     writeA("筱筱吖/扩展功能/续火功能/续火内容/文本.txt", 内容);
     await 发消息(event, [段_引用(event.message_id), 段_文本(`好哒！这就把${目标}的内容改成:\n${内容}`)]);
     return null;
@@ -14135,16 +14311,24 @@ if(message.match(/^设置(续火)模式(文案|图片)$/)){
     // ================== 授权判断 ==================
     if(!(await requireAuthorized(RC_sq, event))) return null;
     // ================== 读取 ==================
-    let 续火方式 = (readA("筱筱吖/扩展功能/续火功能/续火方式/方式.txt") || "文案");
     const 目标 = message.match(/^设置(续火)模式(文案|图片)$/)[1];
     const 类型 = message.match(/^设置(续火)模式(文案|图片)$/)[2];
-    if(类型 == 续火方式){
+    const 续火配置 = ensureXuhuoConfigFile();
+    const 想要附图 = 类型 == "图片";
+    if(想要附图 == 续火配置.图片.启用){
         await 发消息(event, [段_引用(event.message_id), 段_文本(`现在的${目标}已经是【${类型}】模式啦～！`)]);
         return null;
     }
     // ================== 写入&输出 ==================
+    续火配置.图片.启用 = 想要附图;
+    writeXuhuoConfig(续火配置);
     writeA("筱筱吖/扩展功能/续火功能/续火方式/方式.txt", 类型);
-    await 发消息(event, [段_引用(event.message_id), 段_文本(`好哒！这就把${目标}的发送方式改成【${类型}】哦！～`)]);
+    if(想要附图){
+        const 图数 = 续火配置.图片.资源.length;
+        await 发消息(event, [段_引用(event.message_id), 段_文本(`好哒！这就把${目标}的发送方式改成【图片】哦！～\n注意：图片现在是「附带内容」，会和文案一起发；当前图片库 ${图数} 张${图数 ? "" : "（还没配图，先去后台「续火管理」加几张吧）"}`)]);
+    }else{
+        await 发消息(event, [段_引用(event.message_id), 段_文本(`好哒！这就把${目标}的发送方式改成【文案】哦！～\n之后只发文案，不再附带图片`)]);
+    }
     return null;
 }
 
@@ -14173,13 +14357,17 @@ if(message.match(/^(开启|关闭)(好友续火|群聊续火|全部好友续火|
                 return null;
             }else{
                 // ================== 写入方式 ==================
+                let 顺带启用了私聊 = false;
                 if(类型 == "群聊续火"){
                     writeB(`筱筱吖/事件系统/${目标}.json`, "群聊续火", 操作);
                 }else{
                     writeB(`筱筱吖/扩展功能/续火功能/状态数据/好友/开关.json`, 目标, 操作);
+                    if(操作 == "开启") 顺带启用了私聊 = mkXuhuoEnsurePrivateSchedule();
                 }
+                if(顺带启用了私聊) void mkScheduleXuhuo(ctx);
                 // ================== 输出 ==================
-                await 发消息(event, [段_引用(event.message_id), 段_文本(`好哒！这就把「${目标}」的续🔥开关给【${操作}】`)]);
+                const 附加提示 = 顺带启用了私聊 ? `\n（私聊续火原本未启用，已一并开启）` : ``;
+                await 发消息(event, [段_引用(event.message_id), 段_文本(`好哒！这就把「${目标}」的续🔥开关给【${操作}】${附加提示}`)]);
                 return null;
             }
         }
@@ -14202,8 +14390,12 @@ if(message.match(/^(开启|关闭)(好友续火|群聊续火|全部好友续火|
                     组装消息 += `\n${i+1}. ${本次QQ}❌本就${开关}`;
                 }else{
                     writeB(`筱筱吖/扩展功能/续火功能/状态数据/好友/开关.json`, 本次QQ, 操作);
-                    组装消息 += `\n${i+1}. ${本次QQ}✅这就${开关}`;
+                    组装消息 += `\n${i+1}. ${本次QQ}✅已${操作}`;
                 }
+            }
+            if(操作 == "开启" && mkXuhuoEnsurePrivateSchedule()){
+                组装消息 += `\n（私聊续火原本未启用，已一并开启）`;
+                void mkScheduleXuhuo(ctx);
             }
         }else{
             let qunliaoList = await BOTAPI(ctx, "get_group_list", {});
@@ -14221,7 +14413,7 @@ if(message.match(/^(开启|关闭)(好友续火|群聊续火|全部好友续火|
                     组装消息 += `\n${i+1}. ${本次群号}❌本就${开关}`;
                 }else{
                     writeB(`筱筱吖/事件系统/${本次群号}.json`, "群聊续火", 操作);
-                    组装消息 += `\n${i+1}. ${本次群号}✅这就${开关}`;
+                    组装消息 += `\n${i+1}. ${本次群号}✅已${操作}`;
                 }
             }
         }
@@ -14286,91 +14478,105 @@ if(message.match(/^(开启|关闭)(好友消息记录|全部好友消息记录)(
     return null;
 }
 
-if(message == "管理续火"){
-    // ================== 授权判断 ==================
+if (await mkHandleXuhuoCommands(message, event, ctx, RC_sq)) return null;
+
+if(message == "管理续火" || message == "续火帮助" || message == "续火状态"){
     if(!(await requireAuthorized(RC_sq, event))) return null;
-    // ================== 获取群列表 ==================
-    const groupList = await BOTAPI(ctx, "get_group_list", {});
-    const 群数量  = (groupList.length || 0);
-    // ================== 循环 - 前置==================
-    let 统计数量1 = 0;
-    let 统计数量2 = 0;
-    let 组装消息1 = ``;
-    let 组装消息2 = ``;
-    // ================== 循环 - 正式 ==================
-    for(let i = 0; i < 群数量; i++){
-        let 群号 = groupList[i]["group_id"];
-        let 群名 = groupList[i]["group_name"];
-        let 现人数 = groupList[i]["member_count"];
-        let 可人数 = groupList[i]["max_member_count"];
-        let fakeEvent = {message_type: "group", group_id: 群号};
-        let 我可以说话吗 = true;
-        // ================== 续火开关 ==================
-        let 开关 = readB(`筱筱吖/事件系统/${群号}.json`, "群聊续火", "关闭");
-        if(开关 == "开启"){
-            组装消息1 += `\n${统计数量1 + 1}. ${群名}(${群号})✅`;
-            统计数量1++;
-        }else{
-            组装消息2 += `\n${统计数量2 + 1}. ${群名}(${群号})❌`;
-            统计数量2++;
-        }
+    const groupList = mkObList(await BOTAPI(ctx, "get_group_list", {}));
+    const friendList = mkObList(await BOTAPI(ctx, "get_friend_list", {}));
+    const cfg = ensureXuhuoConfigFile();
+    const 今日 = xuhuoDateKey();
+    const 今日群聊 = readXuhuoDayState("群聊", 今日);
+    const 今日私聊 = readXuhuoDayState("私聊", 今日);
+    const 计数 = (state, 值) => Object.values(state).filter((v) => v === 值).length;
+    const 群开 = [];
+    const 群关 = [];
+    const 友开 = [];
+    const 友关 = [];
+    for (const g of groupList) {
+        const gid = String(g?.group_id ?? "");
+        if (!gid) continue;
+        const 开 = readB(`筱筱吖/事件系统/${gid}.json`, "群聊续火", "关闭") === "开启";
+        const 状态 = 今日群聊[gid] === "已" ? "已发" : (今日群聊[gid] === "失败" ? "失败" : "未发");
+        const row = `${g?.group_name ?? gid}(${gid}) ${开 ? `[开启·${状态}]` : "[关闭]"}`;
+        if (开) 群开.push(row);
+        else 群关.push(row);
     }
-    // ================== 获取好友数据 ==================
-    let haoyouList = await BOTAPI(ctx, "get_friend_list", {});
-    let 好友数量  = (haoyouList.length || 0);
-    //
-    let 统计数量3 = 0;
-    let 统计数量4 = 0;
-    let 组装消息3 = ``;
-    let 组装消息4 = ``;
-    //
-    for(let i = 0; i < 好友数量; i++){
-        let 本次QQ = haoyouList[i]["user_id"];
-        let 开关 = readB(`筱筱吖/扩展功能/续火功能/状态数据/好友/开关.json`, 本次QQ, "关闭");
-        if(开关 == "开启"){
-            组装消息3 += `\n${i+1}. ${haoyouList[i]["nickname"]}(${本次QQ})✅`;
-            统计数量3++;
-        }else{
-            组装消息4 += `\n${i+1}. ${haoyouList[i]["nickname"]}(${本次QQ})❌`;
-            统计数量4++;
-        }
+    for (const f of friendList) {
+        const qq = String(f?.user_id ?? "");
+        if (!qq) continue;
+        const 开 = readB(XUHUO_FRIEND_SWITCH, qq, "关闭") === "开启";
+        const 状态 = 今日私聊[qq] === "已" ? "已发" : (今日私聊[qq] === "失败" ? "失败" : "未发");
+        const row = `${f?.nickname ?? qq}(${qq}) ${开 ? `[开启·${状态}]` : "[关闭]"}`;
+        if (开) 友开.push(row);
+        else 友关.push(row);
     }
-    // ================== 数据总结 ==================
-    let 返回内容 = `══════════════`;
-    返回内容 += `\n相关事件【群聊续火】`;
-    返回内容 += `\n相关事件【好友续火】`;
-    返回内容 += `\n`;
-    返回内容 += `\n「全局共同」`;
-    返回内容 += `\n - 设置续火内容[内容]`;
-    返回内容 += `\n - 设置续火模式[文案|图片]`;
-    返回内容 += `\n`;
-    返回内容 += `\n「开关控制」`;
-    返回内容 += `\n - [开启|关闭]好友续火[QQ号]`;
-    返回内容 += `\n - [开启|关闭]群聊续火[群号]`;
-    返回内容 += `\n - [开启|关闭]全部好友续火`;
-    返回内容 += `\n - [开启|关闭]全部群聊续火`;
-    返回内容 += `\n══════════════`;
-    let 返回内容0 = `共计有【${群数量}】个群聊`;
-    let 返回内容1 = `其中有【${统计数量1}】个群聊为「开启」\n══════════════${组装消息1}`;
-    let 返回内容2 = `反之有【${统计数量2}】个群聊为「关闭」\n══════════════${组装消息2}`;
-    let 返回内容3 = `共计有【${好友数量}】个好友`;
-    let 返回内容4 = `其中有【${统计数量3}】个好友为「开启」\n══════════════${组装消息3}`;
-    let 返回内容5 = `反之有【${统计数量4}】个好友为「关闭」\n══════════════${组装消息4}`;
-    const messages = [
-        合并节点("[管理续火]", event.self_id, [段_文本(返回内容)]),
-        合并节点("[管理续火]", event.self_id, [段_文本(返回内容0)]),
-        合并节点("[管理续火]", event.self_id, [段_文本(返回内容1)]),
-        合并节点("[管理续火]", event.self_id, [段_文本(返回内容2)]),
-        合并节点("[管理续火]", event.self_id, [段_文本(返回内容3)]),
-        合并节点("[管理续火]", event.self_id, [段_文本(返回内容4)]),
-        合并节点("[管理续火]", event.self_id, [段_文本(返回内容5)])
-    ];
-    await 发合并消息(event, messages, 合并预览(
-        "MKbot 续火管理",
-        `群聊 ${群数量} 个 · 好友 ${好友数量} 个续火状态`,
-        "[聊天记录]",
-        ["续火: 指令与模式说明", "群聊续火: 开启/关闭统计", "好友续火: 开启/关闭统计"],
-    ));
+    const 配置 = [
+        "══════════════",
+        "【续火配置】",
+        `群聊：${cfg.群聊.启用 ? "开启" : "停用"} · ${mkXuhuoTimeText(cfg.群聊.时, cfg.群聊.分)} · 文案 ${cfg.群聊.文案.length} 句`,
+        `私聊：${cfg.私聊.启用 ? "开启" : "停用"} · ${mkXuhuoTimeText(cfg.私聊.时, cfg.私聊.分)} · 文案 ${cfg.私聊.文案.length} 句 · 沿用群聊 ${cfg.发送.私聊回落群聊 ? "开启" : "关闭"}`,
+        `取句：${cfg.发送.文案策略} · 图文合并 ${cfg.发送.合并 ? "开启" : "关闭"} · 间隔 ${cfg.发送.消息间隔毫秒} 毫秒`,
+        `图片：${cfg.图片.启用 ? "开启" : "关闭"} · ${cfg.图片.模式} · ${cfg.图片.张数} 张 · 统一顺序 ${cfg.图片.统一顺序 ? "开启" : "关闭"} · 共 ${cfg.图片.资源.length} 张`,
+        `保留：${cfg.保留天数} 天`,
+        `今日：群聊 已发 ${计数(今日群聊, "已")} / 失败 ${计数(今日群聊, "失败")}；私聊 已发 ${计数(今日私聊, "已")} / 失败 ${计数(今日私聊, "失败")}`,
+        "══════════════",
+        "【时间与总开关】",
+        "设置续火时间群聊07:30",
+        "设置续火时间私聊08:00",
+        "开启续火群聊 / 关闭续火群聊",
+        "开启续火私聊 / 关闭续火私聊",
+        "",
+        "【文案】",
+        "设置群聊续火内容[多行内容]",
+        "设置私聊续火内容[多行内容]",
+        "添加群聊续火内容[多行内容]",
+        "添加私聊续火内容[多行内容]",
+        "删除群聊续火内容1,3",
+        "删除私聊续火内容1,3",
+        "清空群聊续火内容 / 清空私聊续火内容",
+        "查看续火内容",
+        "设置续火取句随机|顺序|全部",
+        "开启私聊续火沿用 / 关闭私聊续火沿用",
+        "设置续火内容[内容]（旧版，等同群聊）",
+        "设置续火模式文案|图片（旧版）",
+    ].join("\n");
+    const 指令 = [
+        "【图片】",
+        "开启续火图片 / 关闭续火图片",
+        "设置续火图片模式随机|顺序|固定|全部",
+        "设置续火图片张数3",
+        "设置续火固定图片1,3,5",
+        "清空续火固定图片",
+        "设置续火图片顺序统一|各自",
+        "开启续火图文合并 / 关闭续火图文合并",
+        "添加续火图片https://...",
+        "删除续火图片1,2",
+        "上移续火图片2 / 下移续火图片2",
+        "清空续火图片",
+        "查看续火图片",
+        "",
+        "【对象开关】",
+        "开启好友续火[QQ] / 关闭好友续火[QQ]",
+        "开启群聊续火[群号] / 关闭群聊续火[群号]",
+        "开启全部好友续火 / 关闭全部好友续火",
+        "开启全部群聊续火 / 关闭全部群聊续火",
+        "",
+        "【其他】",
+        "设置续火消息间隔600",
+        "设置续火保留天数90",
+    ].join("\n");
+    const 群文本 = [
+        `【群聊续火】共 ${groupList.length} 个 · 开启 ${群开.length} · 关闭 ${群关.length}`,
+        `开启：${群开.join("、") || "无"}`,
+        `关闭：${群关.join("、") || "无"}`,
+    ].join("\n");
+    const 友文本 = [
+        `【好友续火】共 ${friendList.length} 个 · 开启 ${友开.length} · 关闭 ${友关.length}`,
+        `开启：${友开.join("、") || "无"}`,
+        `关闭：${友关.join("、") || "无"}`,
+    ].join("\n");
+    await mkXuhuoSendSections(event, "管理续火", [配置, 指令, 群文本, 友文本]);
     return null;
 }
 
@@ -19913,12 +20119,14 @@ if (noticeType === "group_increase") {
                         await 发消息(fakeEvent, [段_图片(`base64://${imageData}`), ...欢迎段]);
                     }
                 } else {
-                    logger.error("[测试图片] 渲染失败，请检查 Puppeteer 服务是否运行", error);
-                    //await 发消息(event, [段_引用(event.message_id), 段_文本('渲染失败，请检查 Puppeteer 服务是否运行')]);
+                    // 旧代码这里引用了 catch 作用域外的 error，Sharp 与 HTML 双失败时
+                    // 会抛 ReferenceError: error is not defined，把真实失败原因盖掉。
+                    logger.error("[入群身份] Sharp 与 HTML 渲染均失败，未生成图片（请检查 Sharp 运行时依赖与 puppeteer 渲染插件是否可用）");
+                    // 两条渲染链路都挂了也别把整条入群欢迎吞掉，至少把文字欢迎发出去
+                    await 发消息(fakeEvent, 欢迎段);
                 }
             } catch (error) {
-                logger.error("[测试图片] 错误:", error);
-                //await 发消息(event, [段_引用(event.message_id), 段_文本(`测试图片出错: ${error.message}`)]);
+                logger.error("[入群身份] 异常:", error);
             }
         }else{
         // ================== 文字版 ==================
@@ -20375,14 +20583,6 @@ return null;
 /** 相邻 NapCat API 间隔（毫秒），串行发送避免整点并发导致 send_msg 超时 */
 const MK_SCHEDULED_API_GAP_MS = 800;
 
-const MK_XUHUO_IMAGE_URLS = [
-    "http://xn--mk-ub3cl61ae1v.xn--c5w857b.xn--fiqs8s/mkbot/image/续火用的/1.jpg",
-    "http://xn--mk-ub3cl61ae1v.xn--c5w857b.xn--fiqs8s/mkbot/image/续火用的/2.jpg",
-    "http://xn--mk-ub3cl61ae1v.xn--c5w857b.xn--fiqs8s/mkbot/image/续火用的/3.jpg",
-    "http://xn--mk-ub3cl61ae1v.xn--c5w857b.xn--fiqs8s/mkbot/image/续火用的/4.jpg",
-    "http://xn--mk-ub3cl61ae1v.xn--c5w857b.xn--fiqs8s/mkbot/image/续火用的/5.jpg",
-];
-
 function mkScheduledSleep(ms) {
     return new Promise((resolve) => setTimeout(resolve, ms));
 }
@@ -20410,52 +20610,654 @@ async function mkScheduledSendReply(event, content, ctx) {
     await mkScheduledSleep(MK_SCHEDULED_API_GAP_MS);
 }
 
-function mkBuildXuhuoImageFile(indexOneBased) {
-    const abs = path.join(getDataPath(), `筱筱吖/扩展功能/续火功能/临时数据/image/${indexOneBased}.jpg`);
+const MK_XUHUO_GLOBAL_FILE = "筱筱吖/事件系统/全局.json";
+const MK_XUHUO_SCOPES = ["群聊", "私聊"];
+
+function mkXuhuoGroupEventFile(gid) {
+    return `筱筱吖/事件系统/${gid}.json`;
+}
+
+function mkXuhuoSetFriendMaster(on) {
+    writeB(MK_XUHUO_GLOBAL_FILE, "好友续火", on ? "开启" : "关闭");
+}
+
+function mkXuhuoEnsurePrivateSchedule() {
+    const cfg = ensureXuhuoConfigFile();
+    if (cfg.私聊.启用) {
+        mkXuhuoSetFriendMaster(true);
+        return false;
+    }
+    cfg.私聊.启用 = true;
+    writeXuhuoConfig(cfg);
+    mkXuhuoSetFriendMaster(true);
+    return true;
+}
+
+function mkXuhuoStateCache(scope, date) {
+    const state = readXuhuoDayState(scope, date);
+    const file = xuhuoStateFile(scope, date);
+    return {
+        sent: (target) => state[target] === "已",
+        mark: (target, value) => {
+            state[target] = value;
+            writeA(file, JSON.stringify(state, null, 2));
+        },
+        raw: () => state,
+    };
+}
+
+function mkXuhuoResolveImages(cfg, shared) {
+    if (shared) return shared.slice();
+    return pickXuhuoImages(cfg, xuhuoDayIndex()).map(resolveXuhuoImageValue).filter(Boolean);
+}
+
+async function mkXuhuoSendTarget(fakeEvent, cfg, scope, cache, shared) {
+    const target = String(scope === "群聊" ? fakeEvent.group_id : fakeEvent.user_id);
+    if (!target) return "skip";
+    if (cache.sent(target)) return "skip";
+
+    const texts = pickXuhuoTexts(cfg, scope, xuhuoDayIndex());
+    const plans = planXuhuoMessages(cfg, texts, mkXuhuoResolveImages(cfg, shared));
+    if (!plans.length) return "empty";
+
     try {
-        if (!fs.existsSync(abs)) return null;
-        return pathToFileURL(abs).href;
-    } catch (_e) {
-        return null;
+        const gap = Math.max(300, Number(cfg.发送 && cfg.发送.消息间隔毫秒) || MK_SCHEDULED_API_GAP_MS);
+        for (const plan of plans) {
+            const segs = [];
+            for (const t of plan.文案) segs.push(段_文本(t));
+            for (const p of plan.图片) segs.push(段_图片(p));
+            if (!segs.length) continue;
+            await 发消息(fakeEvent, segs);
+            await mkScheduledSleep(gap);
+        }
+        cache.mark(target, "已");
+        return "sent";
+    } catch (error) {
+        logger?.warn?.(`[续火] ${scope} ${target} 发送失败:`, error?.message || error);
+        cache.mark(target, "失败");
+        return "fail";
     }
 }
 
-async function mkEnsureXuhuoImagesDownloaded() {
-    const ready = readB(`筱筱吖/扩展功能/续火功能/临时数据/状态.json`, "下载状态", false);
-    if (ready === true) return true;
+async function mkRunXuhuoByScope(ctx, scope) {
+    const cfg = ensureXuhuoConfigFile();
+    const conf = cfg[scope];
+    if (!conf.启用) {
+        return;
+    }
 
-    let failCount = 0;
-    const dataRoot = getDataPath();
-    for (let i = 0; i < MK_XUHUO_IMAGE_URLS.length; i++) {
-        const dest = path.join(dataRoot, `筱筱吖/扩展功能/续火功能/临时数据/image/${i + 1}.jpg`);
-        const ok = await downloadFile(MK_XUHUO_IMAGE_URLS[i], dest, true);
-        if (!ok) {
-            logger.error(`图片资源:${MK_XUHUO_IMAGE_URLS[i]}，下载失败！`);
-            failCount++;
+    try {
+        pruneXuhuoState(cfg.保留天数);
+    } catch (e) {
+        logger?.warn?.("[续火] 清理历史状态失败:", e?.message || e);
+    }
+
+    const date = xuhuoDateKey();
+    const cache = mkXuhuoStateCache(scope, date);
+    const shared = cfg.图片.启用 && cfg.图片.统一顺序
+        ? pickXuhuoImages(cfg, xuhuoDayIndex()).map(resolveXuhuoImageValue).filter(Boolean)
+        : null;
+
+    let total = 0;
+    let sent = 0;
+    let failed = 0;
+    let empty = 0;
+
+    try {
+        if (scope === "群聊") {
+            const groups = mkObList(await mkScheduledBotAPI(ctx, "get_group_list", {}));
+            for (const g of groups) {
+                const gid = g?.group_id;
+                if (!gid) continue;
+                if (readB(mkXuhuoGroupEventFile(gid), "群聊续火", "关闭") != "开启") continue;
+                total++;
+                const r = await mkXuhuoSendTarget({ message_type: "group", group_id: gid }, cfg, scope, cache, shared);
+                if (r === "sent") sent++;
+                else if (r === "skip") sent++;
+                else if (r === "fail") failed++;
+                else empty++;
+            }
+        } else {
+            const friends = mkObList(await mkScheduledBotAPI(ctx, "get_friend_list", {}));
+            for (const f of friends) {
+                const qq = f?.user_id;
+                if (!qq) continue;
+                if (readB(XUHUO_FRIEND_SWITCH, String(qq), "关闭") != "开启") continue;
+                total++;
+                const r = await mkXuhuoSendTarget({ message_type: "private", user_id: qq }, cfg, scope, cache, shared);
+                if (r === "sent") sent++;
+                else if (r === "skip") sent++;
+                else if (r === "fail") failed++;
+                else empty++;
+            }
+        }
+    } catch (error) {
+        logger?.error?.(`[续火] ${scope} 执行出错:`, error?.message || error);
+    }
+
+    recordXuhuoHistory(date, scope, { 已发: sent, 合计: total });
+    if (total > 0) {
+        logger?.info?.(`[续火] ${scope} 完成：已发 ${sent}/${total}，失败 ${failed}，无内容跳过 ${empty}`);
+    }
+}
+
+function mkXuhuoClearTimers() {
+    const timers = globalThis.__mk_xuhuo_timers;
+    if (!timers) return;
+    for (const k of MK_XUHUO_SCOPES) {
+        if (timers[k]) {
+            clearTimeout(timers[k]);
+            timers[k] = undefined;
         }
     }
-    if (failCount === MK_XUHUO_IMAGE_URLS.length) return false;
-
-    writeB(`筱筱吖/扩展功能/续火功能/临时数据/状态.json`, "可用数量", MK_XUHUO_IMAGE_URLS.length);
-    writeB(`筱筱吖/扩展功能/续火功能/临时数据/状态.json`, "下载状态", true);
-    logger.warn("续火资源已顺利加载成功！");
-    return true;
 }
 
-async function mkScheduledSendXuhuo(fakeEvent, ctx) {
-    const mode = (readA("筱筱吖/扩展功能/续火功能/续火方式/方式.txt") || "文案");
-    if (mode === "图片") {
-        if (!(await mkEnsureXuhuoImagesDownloaded())) return false;
-        const count = Number(readB(`筱筱吖/扩展功能/续火功能/临时数据/状态.json`, "可用数量", 5)) || 5;
-        const pick = rand(1, count);
-        const imageFile = mkBuildXuhuoImageFile(pick);
-        if (!imageFile) return false;
-        await mkScheduledSendReply(fakeEvent, [段_图片(imageFile)], ctx);
+function mkXuhuoClearScopeTimer(scope) {
+    const timers = globalThis.__mk_xuhuo_timers;
+    if (!timers || !timers[scope]) return;
+    clearTimeout(timers[scope]);
+    timers[scope] = undefined;
+}
+
+function mkXuhuoArmScope(ctx, scope, cfg) {
+    const timers = globalThis.__mk_xuhuo_timers || (globalThis.__mk_xuhuo_timers = {});
+    mkXuhuoClearScopeTimer(scope);
+    if (globalThis.__mk_scheduler_armed === false) return;
+
+    const conf = cfg[scope];
+    if (!conf.启用) return;
+
+    const now = Date.now();
+    const todayAt = xuhuoTodayFireAt(conf.时, conf.分, now);
+    const overdue = now - todayAt;
+    const state = readXuhuoDayState(scope, xuhuoDateKey(now));
+    const anySentToday = Object.values(state).some((v) => v === "已");
+    const catchUp = overdue >= 60000 && overdue <= 2 * 3600 * 1000 && !anySentToday;
+
+    const delay = catchUp ? 15000 : Math.max(5000, nextXuhuoFireAt(conf.时, conf.分, now) - now);
+    timers[scope] = setTimeout(async () => {
+        if (globalThis.__mk_scheduler_armed === false) return;
+        try {
+            await mkRunXuhuoByScope(ctx, scope);
+        } catch (error) {
+            logger?.error?.(`[续火] ${scope} 定时执行出错:`, error?.message || error);
+        }
+        if (globalThis.__mk_scheduler_armed !== false) {
+            mkXuhuoArmScope(ctx, scope, readXuhuoConfig());
+        }
+    }, delay);
+
+    logger?.debug?.(`[续火] ${scope} 下次执行：${new Date(now + delay).toLocaleString()}`);
+}
+
+function mkXuhuoScheduleSig(cfg) {
+    return MK_XUHUO_SCOPES.map((scope) => {
+        const c = cfg[scope];
+        return `${scope}:${c.启用 ? 1 : 0}:${c.时}:${c.分}`;
+    }).join("|");
+}
+
+async function mkScheduleXuhuo(ctx, opts: { force?: boolean } = {}) {
+    const cfg = readXuhuoConfig();
+    const sig = mkXuhuoScheduleSig(cfg);
+    const timers = globalThis.__mk_xuhuo_timers || {};
+    const missing = MK_XUHUO_SCOPES.some((scope) => cfg[scope].启用 && !timers[scope]);
+    if (opts.force !== true && globalThis.__mk_xuhuo_sig === sig && !missing) return;
+    globalThis.__mk_xuhuo_sig = sig;
+    mkXuhuoClearTimers();
+    if (globalThis.__mk_scheduler_armed === false) return;
+    for (const scope of MK_XUHUO_SCOPES) {
+        mkXuhuoArmScope(ctx, scope, cfg);
+    }
+}
+
+function mkXuhuoParseIndexList(raw, max) {
+    const out = [];
+    String(raw ?? "").split(/[,，\s]+/).forEach((x) => {
+        const n = Number(x);
+        if (Number.isInteger(n) && n >= 1 && n <= max && out.indexOf(n) < 0) out.push(n);
+    });
+    return out.sort((a, b) => a - b);
+}
+
+function mkXuhuoSplitText(raw) {
+    return String(raw ?? "").split(/\r?\n/).map((s) => s.trim()).filter(Boolean);
+}
+
+function mkXuhuoTimeText(h, m) {
+    return `${String(Number(h) || 0).padStart(2, "0")}:${String(Number(m) || 0).padStart(2, "0")}`;
+}
+
+async function mkXuhuoSendSections(event, title, sections) {
+    const nodes = [];
+    for (const section of sections) {
+        const lines = String(section ?? "").split("\n");
+        let cur = "";
+        for (const rawLine of lines) {
+            const pieces = String(rawLine).length > 1200 ? String(rawLine).match(/[\s\S]{1,1200}/g) : [String(rawLine)];
+            for (const line of pieces) {
+                if (cur && cur.length + line.length + 1 > 1400) {
+                    nodes.push(合并节点(`[${title}]`, event.self_id, [段_文本(cur)]));
+                    cur = "";
+                }
+                cur += (cur ? "\n" : "") + line;
+            }
+        }
+        if (cur) nodes.push(合并节点(`[${title}]`, event.self_id, [段_文本(cur)]));
+    }
+    if (!nodes.length) {
+        await 发消息(event, [段_引用(event.message_id), 段_文本("（空）")]);
+        return;
+    }
+    if (nodes.length === 1) {
+        await 发消息(event, [段_引用(event.message_id), 段_文本(String(sections[0] ?? "（空）"))]);
+        return;
+    }
+    await 发合并消息(event, nodes, 合并预览(
+        "MKbot 续火管理",
+        "续火配置、指令与开启统计",
+        "[聊天记录]",
+        ["续火配置", "续火指令 · 时间与文案", "续火指令 · 图片与对象", "群聊续火", "好友续火"],
+    ));
+}
+
+async function mkXuhuoSendLong(event, title, text) {
+    await mkXuhuoSendSections(event, title, [text]);
+}
+
+async function mkHandleXuhuoCommands(message, event, ctx, RC_sq) {
+    const 原文 = String(message ?? "").trim();
+    if (!原文) return false;
+
+    const m时间 = 原文.match(/^设置续火时间\s*(群聊|私聊)\s*([01]?\d|2[0-3])\s*[:：]\s*([0-5]?\d)$/);
+    const m时间疑似 = /^设置续火时间/.test(原文);
+    const m范围开关 = 原文.match(/^(开启|关闭)续火(群聊|私聊)$/);
+    const m设文 = 原文.match(/^设置(群聊|私聊)续火内容([\s\S]+)$/);
+    const m加文 = 原文.match(/^添加(群聊|私聊)续火内容([\s\S]+)$/);
+    const m删文 = 原文.match(/^删除(群聊|私聊)续火内容\s*([\d,，\s]+)$/);
+    const m清文 = 原文.match(/^清空(群聊|私聊)续火内容$/);
+    const m看文 = 原文 === "查看续火内容";
+    const m沿用 = 原文.match(/^(开启|关闭)私聊续火沿用$/);
+    const m取句 = 原文.match(/^设置续火取句(随机|顺序|全部)$/);
+    const m图开关 = 原文.match(/^(开启|关闭)续火图片$/);
+    const m图模式 = 原文.match(/^设置续火图片模式(随机|顺序|固定|全部)$/);
+    const m图张数 = 原文.match(/^设置续火图片张数\s*(\d{1,3})$/);
+    const m固定图 = 原文.match(/^设置续火固定图片\s*([\d,，\s]+)$/);
+    const m清固定 = 原文 === "清空续火固定图片";
+    const m图顺序 = 原文.match(/^设置续火图片顺序(统一|各自)$/);
+    const m合并 = 原文.match(/^(开启|关闭)续火图文合并$/);
+    const m加图 = 原文.match(/^添加续火图片([\s\S]+)$/);
+    const m删图 = 原文.match(/^删除续火图片\s*([\d,，\s]+)$/);
+    const m清图 = 原文 === "清空续火图片";
+    const m看图 = 原文 === "查看续火图片";
+    const m移图 = 原文.match(/^(上移|下移)续火图片\s*(\d{1,3})$/);
+    const m间隔 = 原文.match(/^设置续火消息间隔\s*(\d{1,4})$/);
+    const m保留 = 原文.match(/^设置续火保留天数\s*(\d{1,4})$/);
+
+    const 命中 = Boolean(
+        m时间 || m时间疑似 || m范围开关 || m设文 || m加文 || m删文 || m清文 || m看文 || m沿用 || m取句
+        || m图开关 || m图模式 || m图张数 || m固定图 || m清固定 || m图顺序 || m合并
+        || m加图 || m删图 || m清图 || m看图 || m移图 || m间隔 || m保留
+    );
+    if (!命中) return false;
+
+    if (!(await checkOwner2(event, ctx))) return true;
+    if (!(await requireAuthorized(RC_sq, event))) return true;
+
+    const cfg = ensureXuhuoConfigFile();
+    const 回复 = async (t) => {
+        await 发消息(event, [段_引用(event.message_id), 段_文本(t)]);
+    };
+    const 落盘 = () => {
+        if (!writeXuhuoConfig(cfg)) return false;
+        mkXuhuoSetFriendMaster(cfg.私聊.启用);
+        void mkScheduleXuhuo(ctx);
+        return true;
+    };
+
+    if (m时间疑似 && !m时间) {
+        await 回复("时间格式不对，示例：设置续火时间群聊07:30（00:00 到 23:59）");
         return true;
     }
-    const text = (readA("筱筱吖/扩展功能/续火功能/续火内容/文本.txt") || "愿君安心");
-    await mkScheduledSendReply(fakeEvent, [段_文本(text)], ctx);
-    return true;
+
+    if (m时间) {
+        const scope = m时间[1];
+        cfg[scope].时 = Number(m时间[2]);
+        cfg[scope].分 = Number(m时间[3]);
+        if (!落盘()) {
+            await 回复("续火配置保存失败，请稍后重试");
+            return true;
+        }
+        const 状态 = cfg[scope].启用 ? "" : "（该范围当前已停用，开启后才会发送）";
+        await 回复(`已把${scope}续火时间设为 ${mkXuhuoTimeText(cfg[scope].时, cfg[scope].分)}${状态}`);
+        return true;
+    }
+
+    if (m范围开关) {
+        const 开 = m范围开关[1] === "开启";
+        const scope = m范围开关[2];
+        cfg[scope].启用 = 开;
+        if (!落盘()) {
+            await 回复("续火配置保存失败，请稍后重试");
+            return true;
+        }
+        if (开) {
+            await 回复(`已开启${scope}续火发送，时间 ${mkXuhuoTimeText(cfg[scope].时, cfg[scope].分)}`);
+        } else {
+            await 回复(`已关闭${scope}续火发送，已排队的定时任务不会再发`);
+        }
+        return true;
+    }
+
+    if (m设文) {
+        const scope = m设文[1];
+        const list = mkXuhuoSplitText(m设文[2]);
+        if (!list.length) {
+            await 回复("文案不能为空");
+            return true;
+        }
+        cfg[scope].文案 = list;
+        if (!落盘()) {
+            await 回复("续火配置保存失败，请稍后重试");
+            return true;
+        }
+        await 回复(`已把${scope}续火文案设为 ${list.length} 句`);
+        return true;
+    }
+
+    if (m加文) {
+        const scope = m加文[1];
+        const list = mkXuhuoSplitText(m加文[2]);
+        if (!list.length) {
+            await 回复("文案不能为空");
+            return true;
+        }
+        cfg[scope].文案 = cfg[scope].文案.concat(list);
+        if (!落盘()) {
+            await 回复("续火配置保存失败，请稍后重试");
+            return true;
+        }
+        await 回复(`已为${scope}续火追加 ${list.length} 句，当前共 ${cfg[scope].文案.length} 句`);
+        return true;
+    }
+
+    if (m删文) {
+        const scope = m删文[1];
+        const list = cfg[scope].文案;
+        const 序号 = mkXuhuoParseIndexList(m删文[2], list.length);
+        if (!序号.length) {
+            await 回复(`序号无效，当前${scope}文案共 ${list.length} 句，发送「查看续火内容」可看序号`);
+            return true;
+        }
+        序号.slice().sort((a, b) => b - a).forEach((i) => list.splice(i - 1, 1));
+        cfg[scope].文案 = list;
+        if (!落盘()) {
+            await 回复("续火配置保存失败，请稍后重试");
+            return true;
+        }
+        await 回复(`已删除${scope}文案 ${序号.length} 句，剩余 ${list.length} 句`);
+        return true;
+    }
+
+    if (m清文) {
+        const scope = m清文[1];
+        cfg[scope].文案 = [];
+        if (!落盘()) {
+            await 回复("续火配置保存失败，请稍后重试");
+            return true;
+        }
+        const 提示 = scope === "私聊" && cfg.发送.私聊回落群聊 ? "，私聊将沿用群聊文案" : "";
+        await 回复(`已清空${scope}续火文案${提示}`);
+        return true;
+    }
+
+    if (m看文) {
+        const 行 = [];
+        行.push(`【群聊文案】${cfg.群聊.文案.length} 句`);
+        cfg.群聊.文案.forEach((t, i) => 行.push(`${i + 1}. ${t}`));
+        if (!cfg.群聊.文案.length) 行.push("（空）");
+        行.push("");
+        行.push(`【私聊文案】${cfg.私聊.文案.length} 句`);
+        cfg.私聊.文案.forEach((t, i) => 行.push(`${i + 1}. ${t}`));
+        if (!cfg.私聊.文案.length) {
+            行.push("（空）");
+            if (cfg.发送.私聊回落群聊) 行.push(`（私聊当前沿用群聊的 ${cfg.群聊.文案.length} 句）`);
+        }
+        行.push("");
+        行.push(`取句方式：${cfg.发送.文案策略}`);
+        行.push(`私聊沿用群聊：${cfg.发送.私聊回落群聊 ? "开启" : "关闭"}`);
+        await mkXuhuoSendLong(event, "续火文案", 行.join("\n"));
+        return true;
+    }
+
+    if (m沿用) {
+        const 开 = m沿用[1] === "开启";
+        cfg.发送.私聊回落群聊 = 开;
+        if (!落盘()) {
+            await 回复("续火配置保存失败，请稍后重试");
+            return true;
+        }
+        await 回复(开 ? "已开启私聊沿用群聊：私聊文案为空时使用群聊文案" : "已关闭私聊沿用群聊：私聊文案为空时不发文案");
+        return true;
+    }
+
+    if (m取句) {
+        cfg.发送.文案策略 = m取句[1];
+        if (!落盘()) {
+            await 回复("续火配置保存失败，请稍后重试");
+            return true;
+        }
+        const 说明 = m取句[1] === "随机" ? "每次随机一句" : (m取句[1] === "顺序" ? "按天轮换下一句" : "一次发送全部文案");
+        await 回复(`已把取句方式设为【${m取句[1]}】，${说明}`);
+        return true;
+    }
+
+    if (m图开关) {
+        const 开 = m图开关[1] === "开启";
+        cfg.图片.启用 = 开;
+        if (!落盘()) {
+            await 回复("续火配置保存失败，请稍后重试");
+            return true;
+        }
+        const 提示 = 开 && !cfg.图片.资源.length ? "（图片库还是空的，发送「添加续火图片链接」可添加）" : "";
+        await 回复(`已${开 ? "开启" : "关闭"}续火附带图片${提示}`);
+        return true;
+    }
+
+    if (m图模式) {
+        cfg.图片.模式 = m图模式[1];
+        if (!落盘()) {
+            await 回复("续火配置保存失败，请稍后重试");
+            return true;
+        }
+        const 提示 = m图模式[1] === "固定" && !cfg.图片.固定序号.length ? "（还没设置固定序号，当前会取第 1 张，发送「设置续火固定图片1,3」可设置）" : "";
+        await 回复(`已把取图方式设为【${m图模式[1]}】${提示}`);
+        return true;
+    }
+
+    if (m图张数) {
+        const n = Math.max(1, Math.min(30, Number(m图张数[1])));
+        cfg.图片.张数 = n;
+        if (!落盘()) {
+            await 回复("续火配置保存失败，请稍后重试");
+            return true;
+        }
+        await 回复(`已把每次取图数量设为 ${n} 张（随机/顺序模式生效）`);
+        return true;
+    }
+
+    if (m固定图) {
+        const 序号 = mkXuhuoParseIndexList(m固定图[1], 999);
+        if (!序号.length) {
+            await 回复("请给出有效的图片序号，例如：设置续火固定图片1,3,5");
+            return true;
+        }
+        cfg.图片.固定序号 = 序号.slice(0, 200);
+        if (!落盘()) {
+            await 回复("续火配置保存失败，请稍后重试");
+            return true;
+        }
+        await 回复(`已把固定取图序号设为 ${cfg.图片.固定序号.join(",")}（按图片库当前顺序）`);
+        return true;
+    }
+
+    if (m清固定) {
+        cfg.图片.固定序号 = [];
+        if (!落盘()) {
+            await 回复("续火配置保存失败，请稍后重试");
+            return true;
+        }
+        await 回复("已清空固定取图序号");
+        return true;
+    }
+
+    if (m图顺序) {
+        const 统一 = m图顺序[1] === "统一";
+        cfg.图片.统一顺序 = 统一;
+        if (!落盘()) {
+            await 回复("续火配置保存失败，请稍后重试");
+            return true;
+        }
+        await 回复(统一 ? "已设为统一顺序：群聊与私聊当天取同一组图" : "已设为各自取图：群聊与私聊分别按自己的进度取图");
+        return true;
+    }
+
+    if (m合并) {
+        const 开 = m合并[1] === "开启";
+        cfg.发送.合并 = 开;
+        if (!落盘()) {
+            await 回复("续火配置保存失败，请稍后重试");
+            return true;
+        }
+        await 回复(开 ? "已开启图文合并：图片跟随第一条文案一起发" : "已关闭图文合并：先发文案，再单独发图片");
+        return true;
+    }
+
+    if (m加图) {
+        const 候选 = String(m加图[1]).split(/\s+/).map((s) => s.trim()).filter(Boolean);
+        const 已有 = new Set(cfg.图片.资源.map((x) => x.值));
+        const 新增 = [];
+        for (const u of 候选) {
+            if (cfg.图片.资源.length >= 200) break;
+            if (!isXuhuoUrl(u) || 已有.has(u)) continue;
+            已有.add(u);
+            cfg.图片.资源.push({ id: newXuhuoId(), 来源: "url", 值: u });
+            新增.push(u);
+        }
+        if (!新增.length) {
+            await 回复("没有可添加的图片链接，需要 http/https 开头且不与现有重复");
+            return true;
+        }
+        if (!落盘()) {
+            await 回复("续火配置保存失败，请稍后重试");
+            return true;
+        }
+        await 回复(`已添加 ${新增.length} 张图片，图片库共 ${cfg.图片.资源.length} 张`);
+        return true;
+    }
+
+    if (m删图) {
+        const 池 = cfg.图片.资源;
+        const 序号 = mkXuhuoParseIndexList(m删图[1], 池.length);
+        if (!序号.length) {
+            await 回复(`序号无效，当前图片库共 ${池.length} 张，发送「查看续火图片」可看序号`);
+            return true;
+        }
+        const 待删 = 序号.map((i) => 池[i - 1]);
+        for (const it of 待删) {
+            if (it.来源 !== "本地") continue;
+            const 同名 = 池.filter((x) => x.来源 === "本地" && x.值 === it.值).length;
+            if (同名 > 1) continue;
+            try {
+                const abs = resolveXuhuoImageAbs(it.值);
+                if (abs) fs.unlinkSync(abs);
+            } catch (_e) {
+                void 0;
+            }
+        }
+        序号.slice().sort((a, b) => b - a).forEach((i) => 池.splice(i - 1, 1));
+        cfg.图片.资源 = 池;
+        if (!落盘()) {
+            await 回复("续火配置保存失败，请稍后重试");
+            return true;
+        }
+        await 回复(`已删除 ${序号.length} 张图片，图片库剩余 ${池.length} 张`);
+        return true;
+    }
+
+    if (m清图) {
+        cfg.图片.资源 = [];
+        cfg.图片.固定序号 = [];
+        if (!落盘()) {
+            await 回复("续火配置保存失败，请稍后重试");
+            return true;
+        }
+        await 回复("已清空续火图片库与固定序号，本地图片文件仍保留在数据目录");
+        return true;
+    }
+
+    if (m看图) {
+        const 行 = [];
+        行.push(`【续火图片】共 ${cfg.图片.资源.length} 张`);
+        行.push(`附带图片：${cfg.图片.启用 ? "开启" : "关闭"} · 取图方式：${cfg.图片.模式} · 张数：${cfg.图片.张数} · 统一顺序：${cfg.图片.统一顺序 ? "开启" : "关闭"}`);
+        if (cfg.图片.模式 === "固定") 行.push(`固定序号：${cfg.图片.固定序号.join(",") || "未设置"}`);
+        行.push("");
+        if (!cfg.图片.资源.length) 行.push("（图片库为空）");
+        cfg.图片.资源.forEach((it, i) => {
+            行.push(`${i + 1}. [${it.来源 === "本地" ? "本地" : "链接"}] ${it.值}${isXuhuoImageUsable(it) ? "" : "（不可用）"}`);
+        });
+        await mkXuhuoSendLong(event, "续火图片", 行.join("\n"));
+        return true;
+    }
+
+    if (m移图) {
+        const 池 = cfg.图片.资源;
+        const 序 = Number(m移图[2]);
+        if (!Number.isInteger(序) || 序 < 1 || 序 > 池.length) {
+            await 回复(`序号无效，当前图片库共 ${池.length} 张`);
+            return true;
+        }
+        const from = 序 - 1;
+        const to = m移图[1] === "上移" ? from - 1 : from + 1;
+        if (to < 0 || to >= 池.length) {
+            await 回复(`第 ${序} 张已经在最${m移图[1] === "上移" ? "前" : "后"}了`);
+            return true;
+        }
+        const tmp = 池[from];
+        池[from] = 池[to];
+        池[to] = tmp;
+        cfg.图片.资源 = 池;
+        if (!落盘()) {
+            await 回复("续火配置保存失败，请稍后重试");
+            return true;
+        }
+        await 回复(`已${m移图[1]}第 ${序} 张，现在位于第 ${to + 1} 张`);
+        return true;
+    }
+
+    if (m间隔) {
+        const ms = Math.max(300, Math.min(5000, Number(m间隔[1])));
+        cfg.发送.消息间隔毫秒 = ms;
+        if (!落盘()) {
+            await 回复("续火配置保存失败，请稍后重试");
+            return true;
+        }
+        await 回复(`已把续火多条消息的发送间隔设为 ${ms} 毫秒`);
+        return true;
+    }
+
+    if (m保留) {
+        const days = Math.max(7, Math.min(3650, Number(m保留[1])));
+        cfg.保留天数 = days;
+        if (!落盘()) {
+            await 回复("续火配置保存失败，请稍后重试");
+            return true;
+        }
+        await 回复(`已把续火状态文件保留天数设为 ${days} 天`);
+        return true;
+    }
+
+    return false;
 }
 
 async function handleScheduledTask(ctx) {
@@ -20474,28 +21276,36 @@ async function handleScheduledTask(ctx) {
     } catch (e) {
         logger?.error?.('[定时任务] 金库补给检查失败:', (e as any)?.message || e);
     }
+    let 续火整轮配置 = null;
+    let 续火今日状态 = {};
+    const 当前小时 = Number(timeA("H", Math.floor(Date.now() / 1000)));
+    try {
+        续火整轮配置 = readXuhuoConfig();
+        续火今日状态 = readXuhuoDayState("群聊", 今天);
+    } catch (_e) {
+        续火整轮配置 = null;
+        续火今日状态 = {};
+    }
     // ================== 循环 ==================
     for(let i = 0; i < 群数量; i++){
         let 群号 = groupList[i]["group_id"];
         let fakeEvent = {message_type: "group", group_id: 群号};
         let 我可以说话吗 = true;
         try {
-        // ================== 续火 ==================
-        let 开关 = readB(`筱筱吖/事件系统/${群号}.json`, "群聊续火", "关闭");
-        if(开关 == "开启"){//群聊续火开关
-            let 状态 = readB(`筱筱吖/扩展功能/续火功能/状态数据/群聊/${今天}.json`, 群号, "未");
-            if(状态 == "未"){//今天是否已发过，未就进行
-                if (await mkScheduledSendXuhuo(fakeEvent, ctx)) {
-                    writeB(`筱筱吖/扩展功能/续火功能/状态数据/群聊/${今天}.json`, 群号, "已");
-                    我可以说话吗 = false;
-                }
-            }
-        }
-        
         // ================== 整点报时 ==================
         let 状态 = readB(`筱筱吖/事件系统/${群号}.json`, "整点报时", "关闭");
         let 这个群的授权 = await checkAuthStatus({group_id: 群号});
-        if(状态 == "开启" && 我可以说话吗 == true && 这个群的授权 == "已授权"){
+        let 本小时待续火 = false;
+        try {
+            if (续火整轮配置 && 续火整轮配置.群聊.启用 && 续火整轮配置.群聊.时 == 当前小时) {
+                const 群续火开 = readB(`筱筱吖/事件系统/${群号}.json`, "群聊续火", "关闭") == "开启";
+                const 今日已续 = 续火今日状态[String(群号)] === "已";
+                本小时待续火 = 群续火开 && !今日已续;
+            }
+        } catch (_e) {
+            本小时待续火 = false;
+        }
+        if(状态 == "开启" && 我可以说话吗 == true && 这个群的授权 == "已授权" && !本小时待续火){
             let 不报时时间段 = ["01", "02", "03", "04", "05", "06"];
             let isbaoshi = 不报时时间段.includes(timeA("H", Math.floor(Date.now() / 1000)));
             if(!isbaoshi){
@@ -20542,14 +21352,6 @@ async function handleScheduledTask(ctx) {
             const likeRes = await mkScheduledBotAPI(ctx, "send_like", { user_id: 本次QQ, times: 20 });
             if (likeRes !== null) {
                 writeB(`筱筱吖/扩展功能/点赞记录/${今天}.json`, 本次QQ, "已");
-            }
-        }
-        // ================== 检测是否已续火 ==================
-        let 状态 = readB(`筱筱吖/扩展功能/续火功能/状态数据/好友/${今天}.json`, 本次QQ, "未");
-        let 好友续火开关 = readB(`筱筱吖/扩展功能/续火功能/状态数据/好友/开关.json`, 本次QQ, "关闭");
-        if(状态 == "未" && 好友续火开关 == "开启" && 好友续火总开关 == "开启"){//今天是否已发过，未就进行
-            if (await mkScheduledSendXuhuo(fakeEvent, ctx)) {
-                writeB(`筱筱吖/扩展功能/续火功能/状态数据/好友/${今天}.json`, 本次QQ, "已");
             }
         }
         } catch (err) {
@@ -20827,6 +21629,11 @@ const plugin_init = async (ctx) => {
   // 媒体内联上限（MB）：0/留空 = 走本地路径（默认，大文件不经过 WS，快）；
   // 容器里的 SnowLuma 读不到宿主机文件时才开，且只适合图片这类小文件
   configureMediaInlineLimit(readB("config.json", "媒体内联上限", ""), logger);
+  // 大图内联策略：默认「原图优先」——首发保持原图像素，只有协议端真的拒收
+  // （宿主路径读不到 / WS 帧过大）才压成 JPEG 重试；可配「压缩优先」「不压缩」。
+  configureLargeImagePolicy(readB("config.json", "大图内联策略", ""), logger);
+  // 图片内联体积上限（KB）：超限才会进入「压缩重试」的候选，不影响原图首发
+  configureInlineImageMaxBytes(readB("config.json", "图片内联上限KB", ""), logger);
   // 协议端能否读宿主本地文件：false = SnowLuma 跑在容器里且没挂 data 目录
   // （realpath EACCES → 节点含本地路径会让整条合并转发被拒，实测 retcode=100）。
   // 置 false 后媒体改放 URL，并且**下载前就跳过**，不再白跑一整段下载。
@@ -21004,7 +21811,9 @@ const plugin_init = async (ctx) => {
     ctx.NapCatConfig.boolean("自触开关", "自触开关", 自触开关, "开启后，机器人自己发送的消息也会触发指令")
   ];
   globalThis.__mk_scheduler_armed = true;
+  mkXuhuoSetFriendMaster(readXuhuoConfig().私聊.启用);
   scheduleNextTask(ctx);
+  mkScheduleXuhuo(ctx, { force: true });
   try {
     const base = ctx.router;
     const ROUTE_PREFIX = "/mkbot";
@@ -21580,6 +22389,33 @@ const plugin_init = async (ctx) => {
         testParse: mkTestVideoParse,
       }, logger);
       registerEntertainmentSwitchWebGetRoutes(base, wrapPath, { readB }, logger);
+      const mkXuhuoWebDeps = {
+        listGroups: async () => {
+          try {
+            const r = await ctx.actions.call("get_group_list", {}, ctx.adapterName, ctx.pluginManager.config);
+            return Array.isArray(r) ? r : (r?.data || []);
+          } catch (e) {
+            logger?.warn?.("[续火] 获取群列表失败:", e?.message || e);
+            return [];
+          }
+        },
+        listFriends: async () => {
+          try {
+            const r = await ctx.actions.call("get_friend_list", {}, ctx.adapterName, ctx.pluginManager.config);
+            return Array.isArray(r) ? r : (r?.data || []);
+          } catch (e) {
+            logger?.warn?.("[续火] 获取好友列表失败:", e?.message || e);
+            return [];
+          }
+        },
+        readB,
+        writeB,
+        rearm: () => { void mkScheduleXuhuo(ctx); },
+        friendSwitchOf: (qq) => String(readB(XUHUO_FRIEND_SWITCH, String(qq), "关闭")),
+        groupSwitchOf: (gid) => String(readB(`筱筱吖/事件系统/${gid}.json`, "群聊续火", "关闭")),
+        setFriendMaster: mkXuhuoSetFriendMaster,
+      };
+      registerXuhuoWebGetRoutes(base, wrapPath, mkXuhuoWebDeps, logger);
       registerGlobalForbiddenWebGetRoutes(base, wrapPath, { readA, readB }, logger);
       registerGroupBanWebGetRoutes(base, wrapPath, { readA, readB }, logger);
       const configClipboardDeps = { readA, writeA, readB, writeB, deleteA, deleteKey };
@@ -22350,6 +23186,12 @@ const plugin_init = async (ctx) => {
             if (Object.prototype.hasOwnProperty.call(bodyObj, "媒体内联上限")) {
               configureMediaInlineLimit(bodyObj.媒体内联上限, logger);
             }
+            if (Object.prototype.hasOwnProperty.call(bodyObj, "图片内联上限KB")) {
+              configureInlineImageMaxBytes(bodyObj.图片内联上限KB, logger);
+            }
+            if (Object.prototype.hasOwnProperty.call(bodyObj, "大图内联策略")) {
+              configureLargeImagePolicy(bodyObj.大图内联策略, logger);
+            }
             if (Object.prototype.hasOwnProperty.call(bodyObj, "内联图片落盘")) {
               // 开关语义：'关闭'/'false'/'0' = 停用（恢复 base64 直传）；其余 = 落盘走 file://
               const 落盘值 = String(bodyObj["内联图片落盘"] ?? "").trim().toLowerCase();
@@ -22936,6 +23778,7 @@ const plugin_init = async (ctx) => {
           testParse: mkTestVideoParse,
         }, logger);
         registerEntertainmentSwitchWebPostRoutes(base, wrapPath, { readB, writeB }, logger);
+        registerXuhuoWebPostRoutes(base, wrapPath, mkXuhuoWebDeps, logger);
         registerGlobalForbiddenWebPostRoutes(base, wrapPath, { readA, writeA, readB, writeB }, logger);
         registerGroupBanWebPostRoutes(base, wrapPath, { readA, writeA, readB, writeB }, logger);
         registerConfigClipboardWebPostRoutes(base, wrapPath, configClipboardDeps, logger);
@@ -23304,6 +24147,7 @@ function plugin_on_config_change(ctx, _, key, value) {
 }
 const plugin_cleanup = async (_ctx) => {
   globalThis.__mk_scheduler_armed = false;
+  mkXuhuoClearTimers();
   cleanupSpamFloodGuard();
   if (globalThis.__mk_scheduler_timer) {
     clearTimeout(globalThis.__mk_scheduler_timer);

@@ -58,16 +58,21 @@ const isLocalPath = (v) => /^[A-Za-z]:[\\/]/.test(v) || /^\//.test(v) || /^file:
 
 async function main() {
   console.log('[bundle] 打包 src/BOT.ts …');
-  await build({
+  const bundled = await build({
     entryPoints: ['src/BOT.ts'],
     bundle: true,
     format: 'esm',
     platform: 'node',
     outfile: bundleOut,
+    // 自己落盘：esbuild 子进程在部分 Windows 环境写 %TEMP% 会被判 Access is denied
+    write: false,
+    // sharp 是原生模块，只能运行时动态加载；这里仅校验 BOT.ts 的媒体出口逻辑
+    external: ['sharp'],
     logLevel: 'silent',
   });
+  fs.writeFileSync(bundleOut, bundled.outputFiles[0].contents);
   const mod = await import(pathToFileURL(bundleOut).href);
-  const { 媒体路径, 段有可用媒体, 段_图片, 段_视频, 段_文件, configureMediaInlineLimit, configureProtocolLocalRead, canProtocolReadLocalFile, shouldDownloadMediaForSend, shouldClampDownloadToInlineLimit, auditMediaConfig, configureMediaFetchConcurrency, getMediaFetchConcurrency, normalizeMediaFetchConcurrency, resetMediaFetchConcurrency, mapWithConcurrency, runThunksWithConcurrency } = mod;
+  const { 媒体路径, 段有可用媒体, 段_图片, 段_视频, 段_文件, configureMediaInlineLimit, configureProtocolLocalRead, canProtocolReadLocalFile, shouldDownloadMediaForSend, shouldClampDownloadToInlineLimit, auditMediaConfig, configureMediaFetchConcurrency, getMediaFetchConcurrency, normalizeMediaFetchConcurrency, resetMediaFetchConcurrency, mapWithConcurrency, runThunksWithConcurrency, configureInlineImageMaxBytes, getInlineImageMaxBytes, configureLargeImagePolicy, getLargeImagePolicy, shouldCompressOnFirstSend, canCompressOnRetry, markProtocolLocalFileUnavailable, resetProtocolLocalFileUnavailable, prepareMediaParams, localFileToInline, isLocalFileRef, isUnreadableLocalFileError, isOversizedPayloadError } = mod;
 
   const expectLocalPath = (v) => /^file:/i.test(v);
 
@@ -246,6 +251,93 @@ async function main() {
   const 少量 = await mapWithConcurrency([1, 2], 8, async (x) => x * 2);
   check('任务数 < 并发数 也正常', 少量.join(',') === '2,4', 少量.join(','));
   resetMediaFetchConcurrency();
+
+  console.log('\n[11] Docker / 协议端读不到宿主文件：运行时自愈 + 发送前内联');
+  configureMediaInlineLimit(0);
+  configureProtocolLocalRead(true);
+  resetProtocolLocalFileUnavailable();
+  const 本地图 = path.join(dir, 'docker.png');
+  const pngPayload = Buffer.concat([
+    Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
+    Buffer.alloc(4096, 7),
+  ]);
+  fs.writeFileSync(本地图, pngPayload);
+  check('默认（协议端能读）仍走 file://', 媒体路径(本地图).startsWith('file://'));
+
+  markProtocolLocalFileUnavailable('API 失败 retcode=100');
+  check('捕获失败后 canProtocolReadLocalFile 变 false', canProtocolReadLocalFile() === false);
+  check('小图自动内联，不再把宿主路径下发给协议端', 媒体路径(本地图).startsWith('base64://'));
+
+  const 原参数 = { message: [{ type: 'image', data: { file: pathToFileURL(本地图).href } }] };
+  const 预处理 = await prepareMediaParams(原参数, { forceInline: true });
+  check('prepareMediaParams 把 file:// 转成 base64://', String(预处理.params.message[0].data.file).startsWith('base64://'));
+  check('prepareMediaParams 不污染原参数', 原参数.message[0].data.file.startsWith('file://'));
+  check('prepareMediaParams 标记了本地引用', 预处理.hasLocalRef === true && 预处理.changed === true);
+  check('嵌套合并转发节点里的图片也能转内联', (await (async () => {
+    const p = { messages: [{ type: 'node', data: { content: [{ type: 'image', data: { file: pathToFileURL(本地图).href } }] } }] };
+    const r = await prepareMediaParams(p, { forceInline: true });
+    return String(r.params.messages[0].data.content[0].data.file).startsWith('base64://');
+  })()) === true);
+
+  check('识别 retcode=100 为本地路径读不到', isUnreadableLocalFileError(new Error('API 失败 retcode=100')) === true);
+  check('识别 ENOENT 为本地路径读不到', isUnreadableLocalFileError(new Error('ENOENT: no such file or directory')) === true);
+  check('普通网络错误不误判', isUnreadableLocalFileError(new Error('ETIMEDOUT')) === false);
+  check('识别 WS 帧过大', isOversizedPayloadError(new Error('Max payload size exceeded')) === true);
+  check('localFileToInline 往返一致', Buffer.from(localFileToInline(本地图).slice('base64://'.length), 'base64').equals(pngPayload));
+  check('isLocalFileRef 认 file:// 与 /root 路径', isLocalFileRef('file:///root/a.png') && isLocalFileRef('/root/kakake/data/临时图片/a.png'));
+  check('isLocalFileRef 不认 http / base64', !isLocalFileRef('https://a/b.png') && !isLocalFileRef('base64://AAAA'));
+
+  check('图片内联上限默认 1200KB', getInlineImageMaxBytes() === 1200 * 1024);
+  configureInlineImageMaxBytes(2048);
+  check('图片内联上限可配置', getInlineImageMaxBytes() === 2048 * 1024);
+  configureInlineImageMaxBytes('');
+  check('留空回退默认', getInlineImageMaxBytes() === 1200 * 1024);
+
+  // 用户手动把开关切回「能读」（先关再开，模拟 WebUI 点击）→ 复位运行时判定
+  configureProtocolLocalRead(false);
+  configureProtocolLocalRead(true);
+  check('手动切回「能读」后复位运行时判定', canProtocolReadLocalFile() === true);
+  resetProtocolLocalFileUnavailable();
+
+  console.log('\n[12] 原图优先：默认画质不打折，压缩只在失败重试里发生');
+  configureLargeImagePolicy('');
+  check('默认策略 = 原图优先', getLargeImagePolicy() === 'original-first');
+  check('原图优先 → 首发不压缩', shouldCompressOnFirstSend() === false);
+  check('原图优先 → 失败后允许压缩重试', canCompressOnRetry() === true);
+
+  // 造一张超过 1200KB 上限的 PNG 内联图（本环境无 sharp，正好验证「不压也不报错」）
+  const 大图buf = Buffer.concat([
+    Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
+    Buffer.alloc(1300 * 1024, 9),
+  ]);
+  const 大图b64 = 'base64://' + 大图buf.toString('base64');
+  const 原图参数 = { message: [{ type: 'image', data: { file: 大图b64 } }] };
+  const 原图预处理 = await prepareMediaParams(原图参数, { compressInline: false });
+  check('能识别出这是超限大图', 原图预处理.hasOversizedInline === true);
+  check('原图优先 → 首发完全不动 file 值', 原图预处理.params.message[0].data.file === 大图b64);
+  check('原图优先 → 首发 compressed=0', 原图预处理.compressed === 0);
+  check('原图优先 → 首发 changed=false', 原图预处理.changed === false);
+  check('原图优先 → 解码仍是原图字节', Buffer.from(原图预处理.params.message[0].data.file.slice('base64://'.length), 'base64').equals(大图buf));
+
+  // 本地路径转内联时，原文件字节也必须一字不改
+  const 大图本地 = path.join(dir, 'docker-big.png');
+  fs.writeFileSync(大图本地, 大图buf);
+  markProtocolLocalFileUnavailable('test');
+  const 换形态 = await prepareMediaParams(
+    { message: [{ type: 'image', data: { file: pathToFileURL(大图本地).href } }] },
+    { forceInline: true, compressInline: false },
+  );
+  check('file:// → base64:// 只换承载形态', String(换形态.params.message[0].data.file).startsWith('base64://'));
+  check('换形态后仍是原图字节', Buffer.from(换形态.params.message[0].data.file.slice('base64://'.length), 'base64').equals(大图buf));
+  check('换形态不计入压缩', 换形态.compressed === 0);
+
+  configureLargeImagePolicy('压缩优先');
+  check('压缩优先 → 首发即压缩', getLargeImagePolicy() === 'compress-first' && shouldCompressOnFirstSend() === true);
+  configureLargeImagePolicy('不压缩');
+  check('不压缩 → 首发不压', getLargeImagePolicy() === 'never-compress' && shouldCompressOnFirstSend() === false);
+  check('不压缩 → 重试也禁用压缩', canCompressOnRetry() === false);
+  configureLargeImagePolicy('原图优先');
+  resetProtocolLocalFileUnavailable();
 }
 
 try {

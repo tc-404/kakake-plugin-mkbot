@@ -52,7 +52,19 @@ export function configureSharpRuntimePaths(paths: SharpRuntimePaths): void {
   const pluginDir = String(paths.pluginDir || '').trim();
   const next: string[] = [];
   if (dataDir) next.push(resolveSharpRuntimeDepsDir(dataDir));
-  if (pluginDir) next.push(path.resolve(pluginDir));
+  if (pluginDir) {
+    const abs = path.resolve(pluginDir);
+    next.push(abs);
+    // 咔咔珂把插件装在 plugins_two/<账号>/<插件>，sharp 有时随宿主装在
+    // 项目根 /root/kakake/node_modules。补上几级祖先目录，避免只因
+    // 「index.mjs 相对解析不到 bare sharp」就整条渲染链路回退到 HTML。
+    for (const up of ['..', '../..', '../../..']) {
+      const base = path.resolve(abs, up);
+      if (base !== abs && !next.includes(base)) next.push(base);
+    }
+  }
+  const cwd = path.resolve(process.cwd());
+  if (!next.includes(cwd)) next.push(cwd);
   searchPaths = next;
 }
 
@@ -177,6 +189,15 @@ export async function loadSharp(): Promise<SharpFactory> {
         ? `runtime-deps(${searchPaths.join(' | ')}) 及内置 sharp`
         : '内置 sharp',
     );
+    const detail = e instanceof Error ? e.message : String(e);
+    // 咔咔珂把插件装在 plugins_two/<账号>/ 下，bare 'sharp' 从 index.mjs
+    // 解析不到时只报一句 Cannot find package，用户完全不知道该装哪里。
+    if (/Cannot find package|ERR_MODULE_NOT_FOUND/i.test(detail)) {
+      throw new Error(
+        `未找到 sharp 运行时依赖（${detail}）。请在 MKbot WebUI「渲染设置 → Sharp 运行时依赖」安装，` +
+          '或把 sharp 装到 data/runtime-deps；未安装时图片渲染会回退到 HTML/puppeteer。',
+      );
+    }
     throw e;
   }
 }

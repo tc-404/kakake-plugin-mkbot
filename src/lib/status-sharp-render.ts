@@ -452,7 +452,7 @@ interface DonutSlot {
   colW: number;
 }
 
-interface StatusLayout {
+export interface StatusLayout {
   width: number;
   height: number;
   pad: number;
@@ -1001,14 +1001,20 @@ function keyProcRow(
   const cy = y + h / 2;
   const on = row.running !== false;
   const nameX = x + PROC_NAME_X;
+  // 协议端跨容器时只有「框架名 + 版本」，没有 PID/内存/CPU；此时值是 '—'，
+  // 不能像旧版那样硬拼 " MB" / "%" 变成「— MB」「—%」。
+  const memVal = String(row.memoryMB || '—');
+  const cpuVal = String(row.cpuPercent || '—');
+  const memUnit = on && /\d/.test(memVal) ? ' MB' : '';
+  const cpuUnit = on && /\d/.test(cpuVal) ? '%' : '';
   return [
     tileFlat(x, y, w, h, 11, hue, on),
     flatDot(x + 14, cy, 4.4, hue, on),
     `<text x="${x + 26}" y="${cy + 4.5}" font-family="${FONT}" font-size="12.5" font-weight="bold" fill="${INK}">${escapeXml(fitText(row.label || '-', 12.5, PROC_NAME_X - 34))}</text>`,
     `<text x="${nameX}" y="${cy + 4.5}" font-family="${FONT}" font-size="11.5" fill="${INK_SOFT}">${escapeXml(fitText(row.name || '-', 11.5, w - PROC_PID_R - 46 - PROC_NAME_X))}</text>`,
     `<text x="${x + w - PROC_PID_R}" y="${cy + 4.5}" text-anchor="end" font-family="${FONT}" font-size="11.5" fill="${INK_SOFT}">${escapeXml(String(row.pid || '—'))}</text>`,
-    `<text x="${x + w - 92}" y="${cy + 4.5}" text-anchor="end" font-family="${FONT}" font-size="12.5" font-weight="bold" fill="${INK}">${escapeXml(String(row.memoryMB || '—'))}${on ? ' MB' : ''}</text>`,
-    `<text x="${x + w - 12}" y="${cy + 4.5}" text-anchor="end" font-family="${FONT}" font-size="12" fill="${INK_SOFT}">${escapeXml(String(row.cpuPercent || '—'))}${on ? '%' : ''}</text>`,
+    `<text x="${x + w - 92}" y="${cy + 4.5}" text-anchor="end" font-family="${FONT}" font-size="12.5" font-weight="bold" fill="${INK}">${escapeXml(memVal)}${memUnit}</text>`,
+    `<text x="${x + w - 12}" y="${cy + 4.5}" text-anchor="end" font-family="${FONT}" font-size="12" fill="${INK_SOFT}">${escapeXml(cpuVal)}${cpuUnit}</text>`,
   ].join('\n');
 }
 
@@ -1713,6 +1719,15 @@ function buildStatusOverlaySvg(
   });
 
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${layout.width}" height="${layout.height}">${parts.join('\n')}</svg>`;
+}
+
+/** 只生成 overlay SVG（不碰 sharp）：供回归脚本校验关键进程文案，也便于外部排版复用 */
+export function renderStatusOverlaySvg(
+  layout: StatusLayout,
+  opts: StatusSharpRenderOptions,
+  customText: string | null = null,
+): string {
+  return buildStatusOverlaySvg(layout, opts, customText);
 }
 // ============================== 渲染 ==============================
 

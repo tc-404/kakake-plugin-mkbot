@@ -30,6 +30,12 @@ const EMPTY_STATS: MkChatLogStats = { recv: 0, sent: 0, file: '', available: fal
 const STATS_TTL_MS = 5000;
 /** 单个日志文件体积上限：超过则放弃统计，避免长时间占用 CPU */
 const MAX_LOG_BYTES = 256 * 1024 * 1024;
+/**
+ * 扫描时间预算：日志逐行正则在大文件上可能跑好几秒，而「运行状态」是
+ * 用户正在等回包的交互命令。超过预算就停止并采用已统计到的部分，
+ * 不让日志统计把整条命令拖成 7~8 秒。
+ */
+const MAX_SCAN_MS = 1500;
 
 let cache: { key: string; at: number; value: MkChatLogStats } | null = null;
 
@@ -107,13 +113,25 @@ function isSendRequestLine(body: string): boolean {
 }
 
 /** 统计单个日志文件 */
-async function countLogFile(file: string): Promise<{ recv: number; sent: number }> {
+export async function countLogFile(
+  file: string,
+  budgetMs: number = MAX_SCAN_MS,
+): Promise<{ recv: number; sent: number; truncated: boolean }> {
   let recv = 0;
   let sent = 0;
+  let truncated = false;
+  let lineNo = 0;
+  const started = Date.now();
   const stream = fs.createReadStream(file, { encoding: 'utf8' });
   const rl = readline.createInterface({ input: stream, crlfDelay: Infinity });
   try {
     for await (const line of rl) {
+      lineNo += 1;
+      // 每 512 行才检查一次时间，避免 Date.now() 成为热点
+      if (lineNo % 512 === 0 && Date.now() - started > budgetMs) {
+        truncated = true;
+        break;
+      }
       if (!line) continue;
       const head = /^\[[^\]]+\]\s\[([A-Z_]+)\]([\s\S]*)$/.exec(line);
       if (!head) continue;
@@ -138,7 +156,7 @@ async function countLogFile(file: string): Promise<{ recv: number; sent: number 
     rl.close();
     stream.destroy();
   }
-  return { recv, sent };
+  return { recv, sent, truncated };
 }
 
 /** 今日「收 / 发」统计；任何异常都返回 available:false 而不抛 */
@@ -166,7 +184,10 @@ export async function getTodayChatLogStats(
       } else if (st.size > MAX_LOG_BYTES) {
         warn(logger, `[日志统计] ${name} 体积过大（${st.size} 字节），已跳过统计`);
       } else {
-        const { recv, sent } = await countLogFile(file);
+        const { recv, sent, truncated } = await countLogFile(file);
+        if (truncated) {
+          warn(logger, `[日志统计] ${name} 超过 ${MAX_SCAN_MS}ms 扫描预算，已采用已扫描到的部分计数`);
+        }
         value = { recv, sent, file: name, available: true };
       }
     }

@@ -1463,33 +1463,6 @@
       min-width: 0;
     }
 
-    /* 视频解析页：三区块常驻（不用 display:none 的隐藏 pane）——
-       隐藏式 Tab 在内容短的子页下方会露出大片空白（满高卡片 vs 随内容卡片都不好看）。
-       Tab 改为「滚动定位导航」：点击平滑滚到对应区块，滚动时高亮跟随，内容连续无留白。 */
-    .vp-anchor { scroll-margin-top: 12px; }
-
-    /* 视频解析页沿用全站布局：卡片满高 + .mk-panel-body 内滚动（勿改成 flex:0 0 auto，
-       否则卡片缩成内容高、下方露出大片页面空白）。Tab 用 mk-tabs-inline 全局样式。 */
-
-    /* 视频解析页：平台卡片分区（头部色条 + 平台名，一眼看清归属） */
-    .vp-card {
-      border: 1px solid var(--mk-border);
-      border-radius: 12px;
-      overflow: hidden;
-      background: var(--mk-surface);
-    }
-    .vp-card__head {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      padding: 9px 14px;
-      background: color-mix(in srgb, var(--mk-primary) 10%, transparent);
-      border-bottom: 1px solid var(--mk-border);
-    }
-    .vp-card__name { font-weight: 600; font-size: 13px; color: var(--mk-text); }
-    .vp-card__meta { font-size: 12px; opacity: 0.72; margin-left: auto; }
-    .vp-card__body { padding: 10px 14px 12px; display: flex; flex-direction: column; gap: 8px; }
-
     .mk-tabs-inline {
       display: flex;
       align-items: center;
@@ -3235,27 +3208,27 @@
     }
 
     /* ========== 基础设置页 ========== */
-    #page-settings .mk-settings-body, #page-video-parse .mk-settings-body {
+    #page-settings .mk-settings-body {
       display: flex;
       flex-direction: column;
       gap: 18px;
       padding-bottom: 18px;
     }
 
-    #page-settings .mk-settings-section, #page-video-parse .mk-settings-section {
+    #page-settings .mk-settings-section {
       display: flex;
       flex-direction: column;
       gap: 10px;
     }
 
-    #page-settings .mk-settings-section__head, #page-video-parse .mk-settings-section__head {
+    #page-settings .mk-settings-section__head {
       display: flex;
       align-items: flex-start;
       gap: 10px;
       padding: 0 2px;
     }
 
-    #page-settings .mk-settings-section__icon, #page-video-parse .mk-settings-section__icon {
+    #page-settings .mk-settings-section__icon {
       display: flex;
       align-items: center;
       justify-content: center;
@@ -3268,12 +3241,12 @@
       border: 1px solid color-mix(in srgb, var(--mk-primary) 18%, transparent);
     }
 
-    #page-settings .mk-settings-section__icon svg, #page-video-parse .mk-settings-section__icon svg {
+    #page-settings .mk-settings-section__icon svg {
       width: 17px;
       height: 17px;
     }
 
-    #page-settings .mk-settings-section__title, #page-video-parse .mk-settings-section__title {
+    #page-settings .mk-settings-section__title {
       margin: 0;
       font-family: var(--mk-font-display);
       font-size: 14px;
@@ -3282,18 +3255,18 @@
       line-height: 1.3;
     }
 
-    html[data-mode="dark"] #page-settings .mk-settings-section__title, html[data-mode="dark"] #page-video-parse .mk-settings-section__title {
+    html[data-mode="dark"] #page-settings .mk-settings-section__title {
       color: var(--mk-text);
     }
 
-    #page-settings .mk-settings-section__desc, #page-video-parse .mk-settings-section__desc {
+    #page-settings .mk-settings-section__desc {
       margin: 3px 0 0;
       font-size: 12px;
       line-height: 1.45;
       color: var(--mk-text-muted);
     }
 
-    #page-settings .mk-settings-panel, #page-video-parse .mk-settings-panel {
+    #page-settings .mk-settings-panel {
       border-radius: 14px;
       border: 1px solid var(--mk-border);
       background: var(--mk-surface);
@@ -3301,24 +3274,24 @@
       overflow: hidden;
     }
 
-    #page-settings .mk-settings-panel__inner, #page-video-parse .mk-settings-panel__inner {
+    #page-settings .mk-settings-panel__inner {
       padding: 14px 16px;
     }
 
-    #page-settings .mk-settings-owner-block, #page-video-parse .mk-settings-owner-block {
+    #page-settings .mk-settings-owner-block {
       display: flex;
       flex-direction: column;
       gap: 8px;
     }
 
-    #page-settings .mk-settings-owner-head, #page-video-parse .mk-settings-owner-head {
+    #page-settings .mk-settings-owner-head {
       display: flex;
       align-items: center;
       justify-content: space-between;
       gap: 10px;
     }
 
-    #page-settings .mk-settings-owner-head__title, #page-video-parse .mk-settings-owner-head__title {
+    #page-settings .mk-settings-owner-head__title {
       margin: 0;
       font-family: var(--mk-font-display);
       font-size: 14px;
@@ -3326,7 +3299,7 @@
       color: var(--mk-ink, var(--mk-text));
     }
 
-    #page-settings .mk-settings-owner-add, #page-video-parse .mk-settings-owner-add {
+    #page-settings .mk-settings-owner-add {
       display: inline-flex;
       align-items: center;
       gap: 4px;
@@ -3344,16 +3317,16 @@
       transition: transform 0.12s, box-shadow 0.2s, filter 0.2s;
     }
 
-    #page-settings .mk-settings-owner-add:hover, #page-video-parse .mk-settings-owner-add:hover {
+    #page-settings .mk-settings-owner-add:hover {
       filter: brightness(1.04);
       box-shadow: 0 6px 18px color-mix(in srgb, var(--mk-primary) 34%, transparent);
     }
 
-    #page-settings .mk-settings-owner-add:active, #page-video-parse .mk-settings-owner-add:active {
+    #page-settings .mk-settings-owner-add:active {
       transform: scale(0.97);
     }
 
-    #page-settings .mk-settings-owner-list, #page-video-parse .mk-settings-owner-list {
+    #page-settings .mk-settings-owner-list {
       display: flex;
       flex-wrap: wrap;
       gap: 8px;
@@ -3374,14 +3347,14 @@
       transform: translateY(-1px);
     }
 
-    #page-settings .mk-settings-toggle-list, #page-video-parse .mk-settings-toggle-list {
+    #page-settings .mk-settings-toggle-list {
       display: flex;
       flex-direction: column;
       gap: 8px;
       padding: 10px;
     }
 
-    #page-settings .mk-settings-toggle, #page-video-parse .mk-settings-toggle {
+    #page-settings .mk-settings-toggle {
       display: flex;
       align-items: center;
       justify-content: space-between;
@@ -3393,7 +3366,7 @@
       transition: border-color 0.2s, box-shadow 0.2s, background 0.2s;
     }
 
-    #page-settings .mk-settings-toggle.is-on, #page-video-parse .mk-settings-toggle.is-on {
+    #page-settings .mk-settings-toggle.is-on {
       border-color: color-mix(in srgb, var(--mk-primary) 30%, var(--mk-border));
       background: linear-gradient(
         135deg,
@@ -3403,17 +3376,17 @@
       box-shadow: 0 0 0 1px color-mix(in srgb, var(--mk-primary) 10%, transparent);
     }
 
-    #page-settings .mk-settings-toggle.is-disabled, #page-video-parse .mk-settings-toggle.is-disabled {
+    #page-settings .mk-settings-toggle.is-disabled {
       opacity: 0.62;
     }
 
     @media (hover: hover) {
-      #page-settings .mk-settings-toggle:not(.is-disabled):hover, #page-video-parse .mk-settings-toggle:not(.is-disabled):hover {
+      #page-settings .mk-settings-toggle:not(.is-disabled):hover {
         border-color: var(--mk-border-strong);
       }
     }
 
-    #page-settings .mk-settings-toggle__main, #page-video-parse .mk-settings-toggle__main {
+    #page-settings .mk-settings-toggle__main {
       display: flex;
       align-items: flex-start;
       gap: 10px;
@@ -3421,7 +3394,7 @@
       flex: 1;
     }
 
-    #page-settings .mk-settings-toggle__dot, #page-video-parse .mk-settings-toggle__dot {
+    #page-settings .mk-settings-toggle__dot {
       width: 8px;
       height: 8px;
       margin-top: 6px;
@@ -3431,16 +3404,16 @@
       transition: background 0.2s, box-shadow 0.2s;
     }
 
-    #page-settings .mk-settings-toggle.is-on .mk-settings-toggle__dot, #page-video-parse .mk-settings-toggle.is-on .mk-settings-toggle__dot {
+    #page-settings .mk-settings-toggle.is-on .mk-settings-toggle__dot {
       background: var(--mk-primary);
       box-shadow: 0 0 0 3px color-mix(in srgb, var(--mk-primary) 22%, transparent);
     }
 
-    #page-settings .mk-settings-toggle__text, #page-video-parse .mk-settings-toggle__text {
+    #page-settings .mk-settings-toggle__text {
       min-width: 0;
     }
 
-    #page-settings .mk-settings-toggle__title, #page-video-parse .mk-settings-toggle__title {
+    #page-settings .mk-settings-toggle__title {
       margin: 0;
       font-size: 14px;
       font-weight: 600;
@@ -3448,22 +3421,22 @@
       color: var(--mk-text);
     }
 
-    #page-settings .mk-settings-toggle.is-on .mk-settings-toggle__title, #page-video-parse .mk-settings-toggle.is-on .mk-settings-toggle__title {
+    #page-settings .mk-settings-toggle.is-on .mk-settings-toggle__title {
       color: color-mix(in srgb, var(--mk-primary) 78%, var(--mk-text));
     }
 
-    #page-settings .mk-settings-toggle__desc, #page-video-parse .mk-settings-toggle__desc {
+    #page-settings .mk-settings-toggle__desc {
       margin: 4px 0 0;
       font-size: 12px;
       line-height: 1.45;
       color: var(--mk-text-muted);
     }
 
-    #page-settings .mk-settings-field, #page-video-parse .mk-settings-field {
+    #page-settings .mk-settings-field {
       padding: 14px 16px;
     }
 
-    #page-settings .mk-settings-field__title, #page-video-parse .mk-settings-field__title {
+    #page-settings .mk-settings-field__title {
       margin: 0 0 10px;
       font-family: var(--mk-font-display);
       font-size: 14px;
@@ -3471,47 +3444,47 @@
       color: var(--mk-ink, var(--mk-text));
     }
 
-    #page-settings .mk-settings-field .mk-textarea, #page-video-parse .mk-settings-field .mk-textarea,
-    #page-settings .mk-settings-field .mk-input, #page-video-parse .mk-settings-field .mk-input {
+    #page-settings .mk-settings-field .mk-textarea,
+    #page-settings .mk-settings-field .mk-input {
       border-radius: 12px;
       background: color-mix(in srgb, var(--mk-surface-muted) 50%, var(--mk-surface));
     }
 
-    #page-settings .mk-settings-field .mk-hint, #page-video-parse .mk-settings-field .mk-hint {
+    #page-settings .mk-settings-field .mk-hint {
       margin: 8px 0 0;
     }
 
-    #page-settings .mk-settings-stack, #page-video-parse .mk-settings-stack {
+    #page-settings .mk-settings-stack {
       display: flex;
       flex-direction: column;
       gap: 10px;
       padding: 12px 14px;
     }
 
-    #page-settings .mk-settings-panel__inner.mk-settings-stack, #page-video-parse .mk-settings-panel__inner.mk-settings-stack {
+    #page-settings .mk-settings-panel__inner.mk-settings-stack {
       padding: 12px 14px;
     }
 
-    #page-settings .mk-settings-stack .mk-settings-toggle-list, #page-video-parse .mk-settings-stack .mk-settings-toggle-list {
+    #page-settings .mk-settings-stack .mk-settings-toggle-list {
       padding: 0;
       gap: 8px;
     }
 
-    #page-settings .mk-settings-stack .mk-settings-field, #page-video-parse .mk-settings-stack .mk-settings-field {
+    #page-settings .mk-settings-stack .mk-settings-field {
       padding: 0;
     }
 
-    #page-settings .mk-settings-stack .mk-settings-field__title, #page-video-parse .mk-settings-stack .mk-settings-field__title {
+    #page-settings .mk-settings-stack .mk-settings-field__title {
       margin: 0 0 8px;
     }
 
-    #page-settings .mk-settings-stack__divider, #page-video-parse .mk-settings-stack__divider {
+    #page-settings .mk-settings-stack__divider {
       margin: 2px 0;
       border: none;
       border-top: 1px solid var(--mk-border);
     }
 
-    #page-settings .mk-settings-actions, #page-video-parse .mk-settings-actions {
+    #page-settings .mk-settings-actions {
       display: flex;
       flex-wrap: wrap;
       gap: 10px;
@@ -3522,13 +3495,13 @@
       box-shadow: var(--mk-shadow);
     }
 
-    #page-settings .mk-settings-actions .mk-btn--primary, #page-video-parse .mk-settings-actions .mk-btn--primary {
+    #page-settings .mk-settings-actions .mk-btn--primary {
       flex: 1 1 140px;
       min-height: 42px;
       font-weight: 700;
     }
 
-    #page-settings .mk-settings-actions .mk-btn--ghost, #page-video-parse .mk-settings-actions .mk-btn--ghost {
+    #page-settings .mk-settings-actions .mk-btn--ghost {
       flex: 1 1 140px;
       min-height: 42px;
     }
@@ -9384,6 +9357,286 @@
        fixed 在移动端会触发额外重绘；body 自身 overflow:hidden 不滚动，
        改回 scroll 视觉一致且更省。装饰背景层已整体移除，无需再降级。
        ===================================================================== */
+    #page-xuhuo .xh-body {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      padding: 14px 16px 18px;
+    }
+    .xh-head { display: flex; align-items: center; min-width: 0; }
+    .xh-view { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+    .xh-view[hidden] { display: none; }
+    .xh-view [hidden] { display: none !important; }
+    .xh-card {
+      border: 1px solid var(--mk-border);
+      border-radius: var(--mk-radius);
+      background: var(--mk-surface);
+      padding: 4px 16px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      min-width: 0;
+    }
+    .xh-card--list { padding: 12px 16px; gap: 10px; }
+    .xh-card__title {
+      padding: 12px 0 2px;
+      font-size: var(--mk-h2-size);
+      font-weight: var(--mk-h2-weight);
+      color: var(--mk-text);
+    }
+    .xh-row {
+      display: grid;
+      grid-template-columns: 84px minmax(0, 1fr);
+      align-items: center;
+      gap: 12px;
+    }
+    .xh-row__label { font-size: 13px; color: var(--mk-text); }
+    .xh-row__ctrl { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; min-width: 0; }
+    .xh-row__ctrl > .mk-input { min-width: 0; }
+    .xh-tile-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; }
+    .xh-tile {
+      border: 1px solid var(--mk-border);
+      border-radius: var(--mk-radius-sm);
+      background: var(--mk-surface-muted);
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      min-width: 0;
+    }
+    .xh-tile__head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+    .xh-tile__label { font-size: 13px; color: var(--mk-text); }
+    .xh-clock {
+      width: 100%;
+      min-height: 44px;
+      padding: 0 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: 1px solid var(--mk-border);
+      border-radius: var(--mk-radius-sm);
+      background: var(--mk-surface);
+      color: var(--mk-text);
+      font-family: inherit;
+      font-size: 17px;
+      font-weight: 600;
+      letter-spacing: 0.06em;
+      font-variant-numeric: tabular-nums;
+      cursor: pointer;
+      transition: border-color 0.15s ease, background 0.15s ease;
+    }
+    .xh-clock:hover { border-color: var(--mk-border-strong); }
+    .xh-clock:focus-visible { outline: 2px solid var(--mk-primary); outline-offset: 2px; }
+    .xh-time-hidden {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      border: 0;
+      opacity: 0;
+      pointer-events: none;
+    }
+    .xh-time-modal { width: min(320px, 92vw); }
+    .xh-time-modal__head {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 14px;
+    }
+    .xh-time-modal__title { font-size: var(--mk-h2-size); font-weight: var(--mk-h2-weight); color: var(--mk-text); }
+    .xh-time-modal__value {
+      font-size: 22px;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      font-variant-numeric: tabular-nums;
+      color: var(--mk-primary);
+    }
+    .xh-time-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 16px; }
+    .xh-time-col {
+      height: 208px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      padding: 4px;
+      border: 1px solid var(--mk-border);
+      border-radius: var(--mk-radius-sm);
+      background: var(--mk-surface-muted);
+      -webkit-overflow-scrolling: touch;
+    }
+    .xh-time-item {
+      flex: 0 0 auto;
+      min-height: 38px;
+      border: none;
+      border-radius: 8px;
+      background: transparent;
+      color: var(--mk-text-muted);
+      font-family: inherit;
+      font-size: 15px;
+      font-variant-numeric: tabular-nums;
+      cursor: pointer;
+    }
+    .xh-time-item:hover { background: var(--mk-hover); color: var(--mk-text); }
+    .xh-time-item.is-on { background: var(--mk-primary); color: var(--mk-on-accent); }
+    .xh-select { width: 148px; }
+    .xh-num { width: 84px; }
+    .xh-fixed { width: 168px; }
+    .xh-unit { font-size: 13px; color: var(--mk-text); }
+    .xh-textgroup {
+      border: 1px solid var(--mk-border);
+      border-radius: var(--mk-radius-sm);
+      background: var(--mk-surface-muted);
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      min-width: 0;
+    }
+    .xh-textgroup__head { display: flex; align-items: center; gap: 10px; }
+    .xh-textgroup__label { font-size: 13px; font-weight: 600; color: var(--mk-text); }
+    .xh-textgroup__line { flex: 1 1 auto; height: 1px; background: var(--mk-border); }
+    .xh-textgroup__opt { font-size: 13px; color: var(--mk-text); }
+    .xh-seg { width: 100%; max-width: 420px; }
+    .xh-bubbles { display: flex; flex-wrap: wrap; gap: 8px; min-width: 0; }
+    .xh-bubble {
+      max-width: 100%;
+      padding: 8px 12px;
+      border: 1px solid var(--mk-border);
+      border-radius: 14px;
+      background: var(--mk-surface);
+      color: var(--mk-text);
+      font-size: 13px;
+      line-height: 1.45;
+      text-align: left;
+      cursor: pointer;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .xh-bubble:hover { border-color: var(--mk-border-strong); }
+    .xh-bubble--add { border-style: dashed; background: transparent; color: var(--mk-text-muted); }
+    .xh-url { flex: 1 1 220px; max-width: 460px; }
+    .xh-row__ctrl .mk-btn { flex: 0 0 auto; min-width: 92px; }
+    .xh-img-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 10px; }
+    .xh-img {
+      position: relative;
+      aspect-ratio: 1 / 1;
+      border-radius: var(--mk-radius-sm);
+      overflow: hidden;
+      border: 1px solid var(--mk-border);
+      background: var(--mk-surface-sunken);
+    }
+    .xh-img img { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .xh-img__badge {
+      position: absolute;
+      left: 6px;
+      top: 6px;
+      min-width: 20px;
+      padding: 2px 6px;
+      border-radius: 999px;
+      background: color-mix(in srgb, #000 56%, transparent);
+      color: #fff;
+      font-size: 11px;
+      text-align: center;
+      font-variant-numeric: tabular-nums;
+    }
+    .xh-img__ops { position: absolute; left: 6px; right: 6px; bottom: 6px; display: flex; gap: 4px; }
+    .xh-img__btn {
+      flex: 1 1 0;
+      height: 26px;
+      padding: 0;
+      border: none;
+      border-radius: 7px;
+      background: color-mix(in srgb, #000 56%, transparent);
+      color: #fff;
+      font-size: 13px;
+      line-height: 1;
+      cursor: pointer;
+    }
+    .xh-img__btn:hover { background: color-mix(in srgb, #000 72%, transparent); }
+    .xh-empty {
+      grid-column: 1 / -1;
+      padding: 14px;
+      text-align: center;
+      font-size: 13px;
+      color: var(--mk-text-muted);
+      border: 1px dashed var(--mk-border);
+      border-radius: var(--mk-radius-sm);
+    }
+    .xh-search { position: relative; display: flex; align-items: center; min-width: 0; }
+    .xh-search .mk-input { width: 100%; padding-right: 66px; }
+    .xh-search__count {
+      position: absolute;
+      right: 12px;
+      font-size: 12px;
+      color: var(--mk-text-muted);
+      font-variant-numeric: tabular-nums;
+      pointer-events: none;
+    }
+    .xh-list { display: flex; flex-direction: column; gap: 2px; }
+    .xh-item {
+      display: grid;
+      grid-template-columns: 48px 34px minmax(0, 1fr) 84px;
+      align-items: center;
+      gap: 10px;
+      padding: 7px 10px;
+      border-radius: 10px;
+    }
+    .xh-item:hover { background: var(--mk-hover); }
+    .xh-item__avatar {
+      position: relative;
+      width: 34px;
+      height: 34px;
+      border-radius: 50%;
+      overflow: hidden;
+      background: var(--mk-surface-sunken);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex: 0 0 auto;
+    }
+    .xh-item__initial { font-size: 13px; color: var(--mk-text-muted); }
+    .xh-item__avatar img {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+    .xh-item__main { display: flex; align-items: center; gap: 10px; min-width: 0; }
+    .xh-item__name { flex: 0 1 auto; font-size: 13px; color: var(--mk-text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .xh-item__meta { flex: 0 0 auto; font-size: 12px; color: var(--mk-text-muted); font-variant-numeric: tabular-nums; }
+    .xh-tag {
+      text-align: center;
+      font-size: 12px;
+      padding: 2px 0;
+      border-radius: 999px;
+      border: 1px solid var(--mk-border);
+      color: var(--mk-text-muted);
+    }
+    .xh-tag--ok {
+      color: var(--mk-success);
+      border-color: color-mix(in srgb, var(--mk-success) 42%, transparent);
+      background: var(--mk-success-soft);
+    }
+    .xh-tag--fail {
+      color: var(--mk-danger);
+      border-color: color-mix(in srgb, var(--mk-danger) 42%, transparent);
+      background: var(--mk-danger-soft);
+    }
+    .xh-dialog__text { min-height: 122px; resize: vertical; line-height: 1.6; }
+    @media (max-width: 560px) {
+      .xh-row { grid-template-columns: 1fr; gap: 6px; align-items: start; }
+      .xh-row__ctrl .mk-btn { flex: 1 1 100%; }
+      .xh-url { flex: 1 1 100%; max-width: none; }
+      .xh-item { grid-template-columns: 48px 30px minmax(0, 1fr) 62px; }
+      .xh-item__avatar { width: 30px; height: 30px; }
+      .xh-item__meta { display: none; }
+      .xh-img-grid { grid-template-columns: repeat(auto-fill, minmax(84px, 1fr)); }
+    }
+
     @media (hover: none) and (pointer: coarse), (max-width: 720px) {
       body { background-attachment: scroll; }
     }
@@ -9526,11 +9779,11 @@
         <div class="nav-item" role="button" tabindex="0" onclick="switchPage('group-switch');" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();switchPage('group-switch');}">
           <span>开关管理</span>
         </div>
-        <div class="nav-item" role="button" tabindex="0" onclick="switchPage('video-parse');" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();switchPage('video-parse');}">
-          <span>视频解析</span>
-        </div>
         <div class="nav-item" role="button" tabindex="0" onclick="switchPage('time-manage');" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();switchPage('time-manage');}">
           <span>我要时间</span>
+        </div>
+        <div class="nav-item" role="button" tabindex="0" onclick="switchPage('xuhuo');" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();switchPage('xuhuo');}">
+          <span>续火管理</span>
         </div>
 
         <div class="nav-sep" aria-hidden="true"></div>
@@ -9929,104 +10182,6 @@
         </div>
       </div>
 
-      <div id="page-video-parse" class="page-content">
-        <div class="glass-card">
-          <div class="mk-panel-body mk-settings-body">
-            <div class="mk-tabs-inline" role="tablist" aria-label="视频解析分类" style="padding: 2px 2px 0;">
-              <button type="button" id="vpTabBtn-login" class="mk-tab-pill mk-tab-pill--active" onclick="switchVpTab('login')" aria-selected="true">平台登录</button>
-              <span class="mk-tab-sep" aria-hidden="true">|</span>
-              <button type="button" id="vpTabBtn-download" class="mk-tab-pill" onclick="switchVpTab('download')" aria-selected="false">下载并发</button>
-              <span class="mk-tab-sep" aria-hidden="true">|</span>
-              <button type="button" id="vpTabBtn-test" class="mk-tab-pill" onclick="switchVpTab('test')" aria-selected="false">测试解析</button>
-            </div>
-
-            <section id="vpSec-login" class="mk-settings-section vp-anchor">
-              <section class="mk-settings-section">
-                <div class="mk-settings-section__head">
-                  <span class="mk-settings-section__icon" aria-hidden="true">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>
-                  </span>
-                  <div>
-                    <h3 class="mk-settings-section__title">平台登录</h3>
-                    <p class="mk-settings-section__desc">推荐「扫码登录」：手机 App 扫码确认后 Cookie 自动入库。也可以粘贴网页版 Cookie（F12 → 网络 → 请求头里的 Cookie 整串）。保存登录状态后，续期会把服务端滚动下发的新值合并回存。建议用小号</p>
-                  </div>
-                </div>
-                <div class="mk-settings-panel">
-                  <div class="mk-settings-stack" id="videoParseCookieList"></div>
-                </div>
-              </section>
-            </section>
-
-            <section id="vpSec-download" class="mk-settings-section vp-anchor">
-              <section class="mk-settings-section">
-                <div class="mk-settings-section__head">
-                  <span class="mk-settings-section__icon" aria-hidden="true">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-                  </span>
-                  <div>
-                    <h3 class="mk-settings-section__title">下载与并发</h3>
-                    <p class="mk-settings-section__desc">解析视频时的下载策略，保存后立即生效，无需重启</p>
-                  </div>
-                </div>
-                <div class="mk-settings-panel">
-                  <div class="mk-settings-stack">
-                    <div class="mk-settings-field">
-                      <h4 class="mk-settings-field__title">分片并发路数</h4>
-                      <input type="number" id="downloadParallelInput" class="mk-input" min="1" max="64" step="1" placeholder="16" oninput="onVideoParseParallelInput()">
-                      <p class="mk-hint">同时开多少条连接拉同一个大文件。默认 16，**并非越大越好**——实测 32 路会把 CDN 打到返回 503，总吞吐反而低于 16 路。建议 8~16；遇到 429/503 会自动砍半重试。填 1 = 关闭分片、退回单连接</p>
-                    </div>
-                    <div class="mk-settings-field">
-                      <h4 class="mk-settings-field__title">并发下载数</h4>
-                      <input type="number" id="mediaFetchConcurrencyInput" class="mk-input" min="1" max="8" step="1" placeholder="留空=3" oninput="onMediaFetchConcurrencyInput(); saveVideoParseSettings();">
-                      <p class="mk-hint">一次解析要下封面+图集+视频+音频，这些下载彼此无依赖，并发后总耗时≈最慢的一个（实测图集 5.8s→1.9s）。调高对图集/多视频收益明显，但更容易触发源站限流，上限 8</p>
-                    </div>
-                    <div class="mk-settings-field">
-                      <h4 class="mk-settings-field__title">内联图片落盘</h4>
-                      <div class="mk-netopt-actions">
-                        <button type="button" class="mk-btn mk-btn--primary" id="inlineMaterializeBtn" onclick="toggleInlineMaterialize()">已开启</button>
-                      </div>
-                      <p class="mk-hint">开启后渲染类图片（今日运势 / 菜单 / 卡片等）先落盘再按 file:// 下发，消息体从 MB 级降到几十字节，协议端少一次 base64 解码。仅协议端能读本地文件时生效；关闭则恢复 base64 直传</p>
-                    </div>
-                  </div>
-                </div>
-              </section>
-            </section>
-
-            <section id="vpSec-test" class="mk-settings-section vp-anchor">
-              <section class="mk-settings-section">
-                <div class="mk-settings-section__head">
-                  <span class="mk-settings-section__icon" aria-hidden="true">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-                  </span>
-                  <div>
-                    <h3 class="mk-settings-section__title">测试解析</h3>
-                    <p class="mk-settings-section__desc">用当前 Cookie 配置对一条链接跑一遍解析，直接看能不能出结果</p>
-                  </div>
-                </div>
-                <div class="mk-settings-panel">
-                  <div class="mk-settings-stack">
-                    <div class="mk-settings-field">
-                      <h4 class="mk-settings-field__title">链接</h4>
-                      <div style="display:flex;gap:10px;flex-wrap:wrap;">
-                        <select id="videoParseTestPlatform" class="mk-input" style="width:130px;">
-                          <option value="哔哩哔哩">哔哩哔哩</option>
-                          <option value="抖音">抖音</option>
-                          <option value="小红书">小红书</option>
-                          <option value="快手">快手</option>
-                        </select>
-                        <input type="text" id="videoParseTestUrl" class="mk-input" placeholder="粘贴分享链接" style="flex:1;min-width:220px;">
-                        <button type="button" class="mk-btn mk-btn--primary" id="videoParseTestBtn" onclick="runVideoParseTest()">测试</button>
-                      </div>
-                      <p class="mk-hint" id="videoParseTestResult" style="white-space:pre-wrap;">测试结果会显示在这里</p>
-                    </div>
-                  </div>
-                </div>
-              </section>
-            </section>
-          </div>
-        </div>
-      </div>
-
       <div id="page-settings-advanced" class="page-content">
         <div class="glass-card">
           <div class="mk-panel-body mk-settings-body">
@@ -10130,14 +10285,38 @@
                         <p class="mk-render-row__title">协议端读本地文件</p>
                       </div>
                       <div class="mk-color-field">
-                        <button type="button" class="mk-render-action-btn" id="protocolLocalReadBtn" onclick="toggleProtocolLocalRead()" title="默认「能读」：本地媒体按 file:// 路径下发，协议端自己读盘。SnowLuma 在 Docker 里且没把 kakake 目录挂进容器时会 EACCES、合并转发被拒（retcode=100），这时切到「读不到（容器）」媒体改放链接。用 mk [3]→[20] 挂好目录后请切回「能读」">能读</button>
+                        <button type="button" class="mk-render-action-btn" id="protocolLocalReadBtn" onclick="toggleProtocolLocalRead()" title="默认「能读」：本地媒体按 file:// 路径下发，协议端自己读盘。协议端在 Docker 容器里且没把 kakake 目录挂进去时读不到宿主路径（send_msg retcode=100），切到「读不到（容器）」后渲染图片改走自包含 base64:// 内联并自动压缩。插件也会在首次遇到这类失败时自动判定、自动重试，无需手改。用 mk [3]→[20] 挂好目录后请切回「能读」">能读</button>
                       </div>
                     </div>
                     <div class="mk-render-row" id="mediaInlineRow" style="display:none;">
                       <div class="mk-render-row__main">
                         <p class="mk-render-row__title">媒体内联上限（MB）</p>
                       </div>
-                      <input type="number" id="mediaInlineInput" class="mk-input" min="0" max="64" step="1" placeholder="留空=0（关闭）" title="0 或留空 = 关闭内联（推荐）：本地媒体按路径下发，只传几 KB，协议端自己读盘上传。只有协议端读不到宿主机文件时才需要开（SnowLuma 在容器里会 EACCES）。内联会把文件膨胀 1/3 塞进 WS，大文件会拖垮连接。并发下载数已迁移到「视频解析」页" style="width:110px;text-align:center;" aria-label="媒体内联上限MB" oninput="onMediaInlineInput()">
+                      <input type="number" id="mediaInlineInput" class="mk-input" min="0" max="64" step="1" placeholder="留空=0（关闭）" title="0 或留空 = 关闭内联（推荐）：本地媒体按路径下发，只传几 KB，协议端自己读盘上传。只有协议端读不到宿主机文件时才需要开（SnowLuma 在容器里会 EACCES）。内联会把文件膨胀 1/3 塞进 WS，大文件会拖垮连接。" style="width:110px;text-align:center;" aria-label="媒体内联上限MB" oninput="onMediaInlineInput()">
+                    </div>
+                    <div class="mk-render-row" id="mediaImageInlineKbRow" style="display:none;">
+                      <div class="mk-render-row__main">
+                        <p class="mk-render-row__title">图片内联体积上限（KB）</p>
+                      </div>
+                      <input type="number" id="mediaImageInlineKbInput" class="mk-input" min="64" max="8192" step="64" placeholder="留空=1200" title="只有「原图被协议端拒绝后」才会压缩超过这个体积的内联图片；不影响原图首发。调到 8192KB 基本等于永不触发压缩。留空=1200KB；GIF 动图不压缩。file:// 路径模式永远原图、完全不经过编码器。" style="width:110px;text-align:center;" aria-label="图片内联体积上限KB" oninput="onMediaImageInlineKbInput()">
+                    </div>
+                    <div class="mk-render-row" id="largeImagePolicyRow" style="display:none;">
+                      <div class="mk-render-row__main">
+                        <p class="mk-render-row__title">大图内联策略</p>
+                      </div>
+                      <div class="mk-color-field">
+                        <button type="button" class="mk-render-action-btn" id="largeImagePolicyBtn" onclick="cycleLargeImagePolicy()" title="原图优先（默认）：首发按原图字节发，画质不打折，只有协议端明确拒收（读不到宿主路径 / WS 帧过大）才压成 JPEG 重试。压缩优先：发送前就压，最省帧但画质有损。不压缩：始终原图，发不出去就如实报错。注意 file:// 路径模式（非容器 / 已挂载目录）永远原图，不受本项影响。">原图优先</button>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="mk-render-group" id="renderGroupStatus">
+                    <p class="mk-render-group__title">运行状态 · 关键进程</p>
+                    <div class="mk-render-row" id="protocolKeywordsRow" style="display:none;">
+                      <div class="mk-render-row__main">
+                        <p class="mk-render-row__title">协议框架进程关键字</p>
+                      </div>
+                      <input type="text" id="protocolKeywordsInput" class="mk-input" maxlength="120" placeholder="留空=自动识别" title="运行状态卡片底部「协议框架」行的进程匹配关键字，逗号/空格分隔。已内置 napcat / snowluma / lagrange / llonebot / go-cqhttp 等，且会同时匹配完整命令行（node napcat.mjs 也能认出）。协议端在 Docker 或另一台机器上时本机看不到进程，卡片会改用 get_version_info 自报的框架名+版本显示，无需在这里填。例：snowluma, mybot" style="width:190px;text-align:left;" aria-label="协议框架进程关键字" oninput="onProtocolKeywordsInput()">
                     </div>
                   </div>
                 </div>
@@ -10996,6 +11175,209 @@
         </div>
       </div>
 
+      <div id="page-xuhuo" class="page-content">
+        <div class="glass-card">
+          <div class="mk-panel-head">
+            <div class="xh-head">
+              <div class="mk-tabs-inline" role="tablist" aria-label="续火视图">
+                <button type="button" class="mk-tab-pill mk-tab-pill--active" id="xhTabConfig" role="tab" onclick="xhSwitchView('config')">配置</button>
+                <span class="mk-tab-sep" aria-hidden="true">|</span>
+                <button type="button" class="mk-tab-pill" id="xhTabGroup" role="tab" onclick="xhSwitchView('group')">群聊</button>
+                <span class="mk-tab-sep" aria-hidden="true">|</span>
+                <button type="button" class="mk-tab-pill" id="xhTabPrivate" role="tab" onclick="xhSwitchView('private')">私聊</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="mk-panel-body xh-body">
+
+            <div class="xh-view" id="xhViewConfig">
+              <section class="xh-card">
+                <div class="xh-card__title">发送时间</div>
+                <div class="xh-tile-grid">
+                  <div class="xh-tile">
+                    <div class="xh-tile__head">
+                      <span class="xh-tile__label">群聊</span>
+                      <label class="toggle-switch">
+                        <input type="checkbox" id="xhGroupEnable">
+                        <span class="toggle-slider"></span>
+                      </label>
+                    </div>
+                    <button type="button" class="xh-clock" onclick="xhOpenTime('群聊')">
+                      <span id="xhGroupClock">07:30</span>
+                    </button>
+                    <input type="time" id="xhGroupTime" class="xh-time-hidden">
+                  </div>
+                  <div class="xh-tile">
+                    <div class="xh-tile__head">
+                      <span class="xh-tile__label">私聊</span>
+                      <label class="toggle-switch">
+                        <input type="checkbox" id="xhPrivateEnable">
+                        <span class="toggle-slider"></span>
+                      </label>
+                    </div>
+                    <button type="button" class="xh-clock" onclick="xhOpenTime('私聊')">
+                      <span id="xhPrivateClock">08:00</span>
+                    </button>
+                    <input type="time" id="xhPrivateTime" class="xh-time-hidden">
+                  </div>
+                </div>
+              </section>
+
+              <section class="xh-card">
+                <div class="xh-card__title">文案</div>
+                <div class="xh-textgroup">
+                  <div class="xh-textgroup__head">
+                    <span class="xh-textgroup__label">群聊文案</span>
+                    <span class="xh-textgroup__line" aria-hidden="true"></span>
+                  </div>
+                  <div class="xh-bubbles" id="xhBubblesGroup"></div>
+                </div>
+                <div class="xh-textgroup">
+                  <div class="xh-textgroup__head">
+                    <span class="xh-textgroup__label">私聊文案</span>
+                    <span class="xh-textgroup__line" aria-hidden="true"></span>
+                    <span class="xh-textgroup__opt">沿用群聊</span>
+                    <label class="toggle-switch">
+                      <input type="checkbox" id="xhPrivateFallback">
+                      <span class="toggle-slider"></span>
+                    </label>
+                  </div>
+                  <div class="xh-bubbles" id="xhBubblesPrivate"></div>
+                </div>
+                <div class="xh-row">
+                  <span class="xh-row__label">取句方式</span>
+                  <div class="xh-row__ctrl">
+                    <div class="mk-mode-seg xh-seg" id="xhTextModeSeg" role="radiogroup" aria-label="取句方式">
+                      <button type="button" class="mk-mode-seg__btn is-active" data-mode="随机" role="radio" aria-checked="true" onclick="xhSetTextMode('随机')">随机一句</button>
+                      <button type="button" class="mk-mode-seg__btn" data-mode="顺序" role="radio" aria-checked="false" onclick="xhSetTextMode('顺序')">按天轮换</button>
+                      <button type="button" class="mk-mode-seg__btn" data-mode="全部" role="radio" aria-checked="false" onclick="xhSetTextMode('全部')">全部发送</button>
+                    </div>
+                  </div>
+                </div>
+              </section>
+
+              <section class="xh-card">
+                <div class="xh-card__title">图片</div>
+                <div class="xh-tile-grid">
+                  <div class="xh-tile">
+                    <div class="xh-tile__head">
+                      <span class="xh-tile__label">附带图片</span>
+                      <label class="toggle-switch">
+                        <input type="checkbox" id="xhImageEnable">
+                        <span class="toggle-slider"></span>
+                      </label>
+                    </div>
+                  </div>
+                  <div class="xh-tile">
+                    <div class="xh-tile__head">
+                      <span class="xh-tile__label">图文合并</span>
+                      <label class="toggle-switch">
+                        <input type="checkbox" id="xhMerge">
+                        <span class="toggle-slider"></span>
+                      </label>
+                    </div>
+                  </div>
+                  <div class="xh-tile">
+                    <div class="xh-tile__head">
+                      <span class="xh-tile__label">统一顺序</span>
+                      <label class="toggle-switch">
+                        <input type="checkbox" id="xhImageUnified">
+                        <span class="toggle-slider"></span>
+                      </label>
+                    </div>
+                  </div>
+                </div>
+                <div class="xh-row">
+                  <span class="xh-row__label">取图方式</span>
+                  <div class="xh-row__ctrl">
+                    <select class="mk-input xh-select" id="xhImageMode" onchange="xhSyncImageModeUI()">
+                      <option value="随机">随机取图</option>
+                      <option value="顺序">按顺序取图</option>
+                      <option value="固定">固定几张</option>
+                      <option value="全部">全部发送</option>
+                    </select>
+                    <span class="xh-row__ctrl" id="xhCountWrap">
+                      <input type="number" min="1" max="30" class="mk-input xh-num" id="xhImageCount">
+                      <span class="xh-unit">张</span>
+                    </span>
+                    <span class="xh-row__ctrl" id="xhFixedWrap" hidden>
+                      <input type="text" class="mk-input xh-fixed" id="xhImageFixed">
+                    </span>
+                  </div>
+                </div>
+                <div class="xh-row">
+                  <span class="xh-row__label">图片链接</span>
+                  <div class="xh-row__ctrl">
+                    <input type="text" class="mk-input xh-url" id="xhUrlInput">
+                    <button type="button" class="mk-btn mk-btn--sm mk-btn--ghost" onclick="xhAddUrl()">添加</button>
+                  </div>
+                </div>
+                <div class="xh-row">
+                  <span class="xh-row__label">本地图片</span>
+                  <div class="xh-row__ctrl">
+                    <button type="button" class="mk-btn mk-btn--sm mk-btn--ghost" onclick="xhTriggerUpload()">上传图片</button>
+                    <input type="file" id="xhFileInput" accept="image/png,image/jpeg,image/webp,image/gif" multiple style="display:none;" onchange="xhOnFiles(event)">
+                  </div>
+                </div>
+                <div id="xhImageGrid" class="xh-img-grid"></div>
+              </section>
+            </div>
+
+            <div class="xh-view" id="xhViewGroup" hidden>
+              <section class="xh-card xh-card--list">
+                <div class="xh-search">
+                  <input type="text" class="mk-input" id="xhSearchGroup" oninput="xhRenderTargets()">
+                  <span class="xh-search__count" id="xhCountGroup"></span>
+                </div>
+                <div class="xh-list" id="xhListGroup"></div>
+              </section>
+            </div>
+
+            <div class="xh-view" id="xhViewPrivate" hidden>
+              <section class="xh-card xh-card--list">
+                <div class="xh-search">
+                  <input type="text" class="mk-input" id="xhSearchPrivate" oninput="xhRenderTargets()">
+                  <span class="xh-search__count" id="xhCountPrivate"></span>
+                </div>
+                <div class="xh-list" id="xhListPrivate"></div>
+              </section>
+            </div>
+
+          </div>
+        </div>
+      </div>
+
+      <div id="xhTimeDialog" class="mk-modal-overlay" aria-hidden="true" onclick="xhCloseTime()">
+        <div class="mk-modal xh-time-modal" role="dialog" aria-modal="true" aria-labelledby="xhTimeTitle" onclick="event.stopPropagation()">
+          <div class="xh-time-modal__head">
+            <span class="xh-time-modal__title" id="xhTimeTitle">群聊时间</span>
+            <span class="xh-time-modal__value" id="xhTimeValue">07:30</span>
+          </div>
+          <div class="xh-time-cols">
+            <div class="xh-time-col" id="xhHourCol"></div>
+            <div class="xh-time-col" id="xhMinCol"></div>
+          </div>
+          <div class="mk-btn-row">
+            <button type="button" class="mk-btn mk-btn--primary" onclick="xhConfirmTime()">保存</button>
+            <button type="button" class="mk-btn mk-btn--ghost" onclick="xhCloseTime()">取消</button>
+          </div>
+        </div>
+      </div>
+
+      <div id="xhTextDialog" class="mk-modal-overlay" aria-hidden="true" onclick="xhCloseDialog()">
+        <div class="mk-modal" role="dialog" aria-modal="true" aria-labelledby="xhDialogTitle" onclick="event.stopPropagation()">
+          <h3 id="xhDialogTitle" class="mk-modal__title">文案</h3>
+          <div class="mk-form-group">
+            <textarea id="xhDialogText" class="mk-input xh-dialog__text"></textarea>
+          </div>
+          <div class="mk-btn-row">
+            <button type="button" class="mk-btn mk-btn--primary" onclick="xhConfirmBubble()">保存</button>
+            <button type="button" class="mk-btn mk-btn--danger" id="xhDialogDelete" onclick="xhDeleteBubble()">删除</button>
+            <button type="button" class="mk-btn mk-btn--ghost" onclick="xhCloseDialog()">取消</button>
+          </div>
+        </div>
+      </div>
       <div id="page-broadcast" class="page-content">
         <div class="glass-card">
           <div class="mk-panel-body mk-broadcast-body">
@@ -12146,6 +12528,7 @@
       'group-switch': '群聊开关',
       'friend-list': '好友开关',
       'time-manage': '我要时间',
+      xuhuo: '续火管理',
       'auto-like': '自动点赞',
       'poke-reply': '拍我回应',
       broadcast: '群发管理',
@@ -13690,8 +14073,6 @@
         }
       } else if (pageId === 'settings') {
         loadSettings();
-      } else if (pageId === 'video-parse') {
-        loadVideoParseConfig();
       } else if (pageId === 'settings-advanced') {
         loadAdvancedRenderSettings();
         loadMailAccountsPage();
@@ -13701,6 +14082,8 @@
         loadSponsorAnnouncements();
       } else if (pageId === 'time-manage') {
         loadTimeData().then(() => renderTimeDataList());
+      } else if (pageId === 'xuhuo') {
+        loadXuhuoPage();
       } else if (pageId === 'auto-like') {
         loadAutoLikePage();
       } else if (pageId === 'poke-reply') {
@@ -13730,7 +14113,610 @@
       el.classList.toggle('open');
     }
 
-    // ================== 全局违禁 ==================
+    let xhConfig = null;
+    let xhImages = [];
+    let xhImageCache = {};
+    let xhText = { 群聊: [], 私聊: [] };
+    let xhTextModeValue = '随机';
+    let xhScope = '群聊';
+    let xhTargets = [];
+    let xhViewName = 'config';
+    let xhSaveTimer = null;
+    let xhDialogScope = '群聊';
+    let xhDialogIndex = -1;
+    let xhPressTimer = null;
+    let xhPressFired = false;
+    let xhPressTarget = '关闭';
+    let xhIgnoreNext = null;
+
+    function xhEl(id) { return document.getElementById(id); }
+
+    function xhSplitTime(value) {
+      const m = /^(\d{1,2}):(\d{2})$/.exec(String(value || ''));
+      if (!m) return null;
+      return { 时: Math.min(23, Math.max(0, Number(m[1]))), 分: Math.min(59, Math.max(0, Number(m[2]))) };
+    }
+
+    function xhTimeText(h, m) {
+      const pad = (n) => String(n).padStart(2, '0');
+      return pad(Number(h) || 0) + ':' + pad(Number(m) || 0);
+    }
+
+    async function loadXuhuoPage() {
+      try {
+        const r = await apiCall('/xuhuo/config');
+        const data = (r && r.data) || {};
+        xhConfig = data.config || null;
+        xhImages = Array.isArray(data.images) ? data.images : [];
+        xhImageCache = {};
+        const cfg = xhConfig || {};
+        xhText = {
+          群聊: ((cfg.群聊 && cfg.群聊.文案) || []).slice(),
+          私聊: ((cfg.私聊 && cfg.私聊.文案) || []).slice(),
+        };
+        xhRenderConfig();
+      } catch (e) {
+        showToast('读取续火配置失败: ' + (e && e.message ? e.message : e), 'error');
+      }
+      xhSwitchView(xhViewName);
+      xhBindConfigWatch();
+    }
+
+    function xhSwitchView(view) {
+      xhViewName = view === 'group' ? 'group' : (view === 'private' ? 'private' : 'config');
+      const tabMap = { config: 'xhTabConfig', group: 'xhTabGroup', private: 'xhTabPrivate' };
+      const viewMap = { config: 'xhViewConfig', group: 'xhViewGroup', private: 'xhViewPrivate' };
+      Object.keys(tabMap).forEach(function (key) {
+        const tab = xhEl(tabMap[key]);
+        if (tab) tab.classList.toggle('mk-tab-pill--active', key === xhViewName);
+        const box = xhEl(viewMap[key]);
+        if (box) box.hidden = key !== xhViewName;
+      });
+      if (xhViewName !== 'config') {
+        xhScope = xhViewName === 'group' ? '群聊' : '私聊';
+        xhLoadTargets();
+      }
+    }
+
+    function xhRenderConfig() {
+      const cfg = xhConfig || {};
+      const groupCfg = cfg.群聊 || {};
+      const privateCfg = cfg.私聊 || {};
+      if (xhEl('xhGroupEnable')) xhEl('xhGroupEnable').checked = !!groupCfg.启用;
+      if (xhEl('xhPrivateEnable')) xhEl('xhPrivateEnable').checked = !!privateCfg.启用;
+      if (xhEl('xhGroupTime')) xhEl('xhGroupTime').value = xhTimeText(groupCfg.时, groupCfg.分);
+      if (xhEl('xhPrivateTime')) xhEl('xhPrivateTime').value = xhTimeText(privateCfg.时, privateCfg.分);
+      xhSyncClockText();
+
+      const send = cfg.发送 || {};
+      xhTextModeValue = send.文案策略 === '顺序' ? '顺序' : (send.文案策略 === '全部' ? '全部' : '随机');
+      xhRenderTextMode();
+      if (xhEl('xhPrivateFallback')) xhEl('xhPrivateFallback').checked = send.私聊回落群聊 !== false;
+      if (xhEl('xhMerge')) xhEl('xhMerge').checked = send.合并 !== false;
+
+      const img = cfg.图片 || {};
+      if (xhEl('xhImageEnable')) xhEl('xhImageEnable').checked = !!img.启用;
+      if (xhEl('xhImageMode')) xhEl('xhImageMode').value = img.模式 || '随机';
+      if (xhEl('xhImageCount')) xhEl('xhImageCount').value = img.张数 || 1;
+      if (xhEl('xhImageUnified')) xhEl('xhImageUnified').checked = img.统一顺序 !== false;
+      if (xhEl('xhImageFixed')) xhEl('xhImageFixed').value = (img.固定序号 || []).join(',');
+
+      xhRenderBubbles();
+      xhSyncImageModeUI();
+      xhRenderImages();
+    }
+
+    function xhBindConfigWatch() {
+      const box = xhEl('xhViewConfig');
+      if (!box || box.dataset.watch === '1') return;
+      box.dataset.watch = '1';
+      box.addEventListener('change', function (e) {
+        const t = e.target;
+        if (!t || !t.id || String(t.id).indexOf('xh') !== 0) return;
+        xhQueueSave();
+      });
+    }
+
+    function xhQueueSave() {
+      if (xhSaveTimer) clearTimeout(xhSaveTimer);
+      xhSaveTimer = setTimeout(function () {
+        xhSaveTimer = null;
+        xhPushConfig();
+      }, 320);
+    }
+
+    async function xhPushConfig() {
+      try {
+        const cfg = xhCollectConfig();
+        const r = await apiCall('/xuhuo/config', {
+          method: 'POST',
+          body: JSON.stringify({ config: cfg }),
+        });
+        xhConfig = (r && r.data && r.data.config) || cfg;
+      } catch (e) {
+        showToast('保存失败: ' + (e && e.message ? e.message : e), 'error');
+      }
+    }
+
+    async function xhSaveNow() {
+      if (xhSaveTimer) {
+        clearTimeout(xhSaveTimer);
+        xhSaveTimer = null;
+      }
+      await xhPushConfig();
+    }
+
+    function xhRenderBubbles() {
+      xhRenderBubbleList('群聊');
+      xhRenderBubbleList('私聊');
+    }
+
+    function xhRenderBubbleList(scope) {
+      const box = xhEl(scope === '群聊' ? 'xhBubblesGroup' : 'xhBubblesPrivate');
+      if (!box) return;
+      const list = xhText[scope] || [];
+      const items = list.map(function (text, i) {
+        return '<button type="button" class="xh-bubble" onclick="xhOpenBubble(\'' + scope + '\',' + i + ')">'
+          + escapeHtml(text) + '</button>';
+      }).join('');
+      box.innerHTML = items
+        + '<button type="button" class="xh-bubble xh-bubble--add" onclick="xhOpenBubble(\'' + scope + '\',-1)">添加</button>';
+    }
+
+    function xhRenderTextMode() {
+      const seg = xhEl('xhTextModeSeg');
+      if (!seg) return;
+      const btns = seg.querySelectorAll('button');
+      for (let i = 0; i < btns.length; i++) {
+        const on = btns[i].getAttribute('data-mode') === xhTextModeValue;
+        btns[i].classList.toggle('is-active', on);
+        btns[i].setAttribute('aria-checked', on ? 'true' : 'false');
+      }
+    }
+
+    function xhSetTextMode(mode) {
+      xhTextModeValue = mode === '顺序' ? '顺序' : (mode === '全部' ? '全部' : '随机');
+      xhRenderTextMode();
+      xhQueueSave();
+    }
+
+    let xhTimeScope = '群聊';
+    let xhTimeHour = 0;
+    let xhTimeMin = 0;
+
+    function xhClockText(h, m) {
+      const pad = function (n) { return String(n).padStart(2, '0'); };
+      return pad(h) + ':' + pad(m);
+    }
+
+    function xhSyncClockText() {
+      const g = xhSplitTime(xhEl('xhGroupTime') ? xhEl('xhGroupTime').value : '');
+      const p = xhSplitTime(xhEl('xhPrivateTime') ? xhEl('xhPrivateTime').value : '');
+      const ge = xhEl('xhGroupClock');
+      const pe = xhEl('xhPrivateClock');
+      if (ge) ge.textContent = xhClockText(g ? g.时 : 0, g ? g.分 : 0);
+      if (pe) pe.textContent = xhClockText(p ? p.时 : 0, p ? p.分 : 5);
+    }
+
+    function xhRenderTimeCols() {
+      const hourCol = xhEl('xhHourCol');
+      const minCol = xhEl('xhMinCol');
+      if (!hourCol || !minCol) return;
+      let hours = '';
+      for (let h = 0; h < 24; h++) {
+        hours += '<button type="button" class="xh-time-item' + (h === xhTimeHour ? ' is-on' : '') + '" onclick="xhPickHour(' + h + ')">' + xhClockText(h, 0).slice(0, 2) + '</button>';
+      }
+      hourCol.innerHTML = hours;
+      let mins = '';
+      for (let m = 0; m < 60; m++) {
+        mins += '<button type="button" class="xh-time-item' + (m === xhTimeMin ? ' is-on' : '') + '" onclick="xhPickMin(' + m + ')">' + (m < 10 ? '0' + m : String(m)) + '</button>';
+      }
+      minCol.innerHTML = mins;
+      const value = xhEl('xhTimeValue');
+      if (value) value.textContent = xhClockText(xhTimeHour, xhTimeMin);
+      const onHour = hourCol.querySelector('.is-on');
+      if (onHour && onHour.scrollIntoView) onHour.scrollIntoView({ block: 'center' });
+      const onMin = minCol.querySelector('.is-on');
+      if (onMin && onMin.scrollIntoView) onMin.scrollIntoView({ block: 'center' });
+    }
+
+    function xhOpenTime(scope) {
+      xhTimeScope = scope === '私聊' ? '私聊' : '群聊';
+      const input = xhEl(xhTimeScope === '私聊' ? 'xhPrivateTime' : 'xhGroupTime');
+      const current = xhSplitTime(input ? input.value : '') || { 时: 0, 分: 0 };
+      xhTimeHour = current.时;
+      xhTimeMin = current.分;
+      const title = xhEl('xhTimeTitle');
+      if (title) title.textContent = xhTimeScope + '时间';
+      xhRenderTimeCols();
+      const overlay = xhEl('xhTimeDialog');
+      if (overlay) {
+        overlay.style.display = 'flex';
+        overlay.setAttribute('aria-hidden', 'false');
+      }
+    }
+
+    function xhCloseTime() {
+      const overlay = xhEl('xhTimeDialog');
+      if (overlay) {
+        overlay.style.display = 'none';
+        overlay.setAttribute('aria-hidden', 'true');
+      }
+    }
+
+    function xhPickHour(h) {
+      xhTimeHour = Math.min(23, Math.max(0, h));
+      xhRenderTimeCols();
+    }
+
+    function xhPickMin(m) {
+      xhTimeMin = Math.min(59, Math.max(0, m));
+      xhRenderTimeCols();
+    }
+
+    function xhConfirmTime() {
+      const input = xhEl(xhTimeScope === '私聊' ? 'xhPrivateTime' : 'xhGroupTime');
+      if (input) {
+        input.value = xhClockText(xhTimeHour, xhTimeMin);
+        input.dispatchEvent(new Event('change', { bubbles: true }));
+      }
+      xhSyncClockText();
+      xhCloseTime();
+    }
+
+    function xhOpenBubble(scope, index) {
+      xhDialogScope = scope === '私聊' ? '私聊' : '群聊';
+      xhDialogIndex = typeof index === 'number' ? index : -1;
+      const title = xhEl('xhDialogTitle');
+      if (title) title.textContent = xhDialogScope + '文案';
+      const area = xhEl('xhDialogText');
+      const list = xhText[xhDialogScope] || [];
+      if (area) area.value = xhDialogIndex >= 0 ? String(list[xhDialogIndex] || '') : '';
+      const del = xhEl('xhDialogDelete');
+      if (del) del.style.display = xhDialogIndex >= 0 ? '' : 'none';
+      const overlay = xhEl('xhTextDialog');
+      if (overlay) {
+        overlay.style.display = 'flex';
+        overlay.setAttribute('aria-hidden', 'false');
+      }
+      setTimeout(function () {
+        if (area) area.focus();
+      }, 30);
+    }
+
+    function xhCloseDialog() {
+      const overlay = xhEl('xhTextDialog');
+      if (overlay) {
+        overlay.style.display = 'none';
+        overlay.setAttribute('aria-hidden', 'true');
+      }
+    }
+
+    async function xhConfirmBubble() {
+      const area = xhEl('xhDialogText');
+      const value = area ? String(area.value || '').trim() : '';
+      xhCloseDialog();
+      if (!value) return;
+      const list = (xhText[xhDialogScope] || []).slice();
+      if (xhDialogIndex >= 0) list[xhDialogIndex] = value;
+      else list.push(value);
+      xhText[xhDialogScope] = list;
+      xhRenderBubbleList(xhDialogScope);
+      await xhPushConfig();
+    }
+
+    async function xhDeleteBubble() {
+      if (xhDialogIndex < 0) {
+        xhCloseDialog();
+        return;
+      }
+      const list = (xhText[xhDialogScope] || []).slice();
+      list.splice(xhDialogIndex, 1);
+      xhText[xhDialogScope] = list;
+      xhCloseDialog();
+      xhRenderBubbleList(xhDialogScope);
+      await xhPushConfig();
+    }
+
+    function xhSyncImageModeUI() {
+      const sel = xhEl('xhImageMode');
+      const mode = sel ? sel.value : '随机';
+      const countWrap = xhEl('xhCountWrap');
+      const fixedWrap = xhEl('xhFixedWrap');
+      if (countWrap) countWrap.hidden = mode === '全部' || mode === '固定';
+      if (fixedWrap) fixedWrap.hidden = mode !== '固定';
+    }
+
+    async function xhRenderImages() {
+      const grid = xhEl('xhImageGrid');
+      if (!grid) return;
+      if (!xhImages.length) {
+        grid.innerHTML = '<div class="xh-empty">还没有图片</div>';
+        return;
+      }
+      const cards = [];
+      for (let i = 0; i < xhImages.length; i++) {
+        const it = xhImages[i] || {};
+        let src = '';
+        if (it.来源 === 'url') {
+          src = String(it.值 || '');
+        } else {
+          const name = String(it.值 || '');
+          if (!(name in xhImageCache)) {
+            try {
+              const r = await apiCall('/xuhuo/image/read?name=' + encodeURIComponent(name));
+              xhImageCache[name] = (r && r.data && r.data.dataUrl) || '';
+            } catch (_e) {
+              xhImageCache[name] = '';
+            }
+          }
+          src = xhImageCache[name] || '';
+        }
+        const preview = src
+          ? '<img src="' + escapeHtml(src) + '" alt="">'
+          : '<div class="xh-empty" style="border:none;height:100%;display:flex;align-items:center;justify-content:center;margin:0;">无预览</div>';
+        cards.push(
+          '<div class="xh-img">' + preview
+          + '<span class="xh-img__badge">' + (i + 1) + '</span>'
+          + '<span class="xh-img__ops">'
+          + '<button type="button" class="xh-img__btn" onclick="xhMoveImage(' + i + ',-1)">↑</button>'
+          + '<button type="button" class="xh-img__btn" onclick="xhMoveImage(' + i + ',1)">↓</button>'
+          + '<button type="button" class="xh-img__btn" onclick="xhRemoveImage(' + i + ')">×</button>'
+          + '</span></div>'
+        );
+      }
+      grid.innerHTML = cards.join('');
+    }
+
+    function xhTriggerUpload() {
+      const el = xhEl('xhFileInput');
+      if (el) el.click();
+    }
+
+    function xhReadFileAsDataUrl(file) {
+      return new Promise(function (resolve, reject) {
+        const reader = new FileReader();
+        reader.onload = function () { resolve(String(reader.result || '')); };
+        reader.onerror = function () { reject(new Error('读取文件失败')); };
+        reader.readAsDataURL(file);
+      });
+    }
+
+    async function xhOnFiles(ev) {
+      const input = ev && ev.target ? ev.target : null;
+      const files = input && input.files ? Array.from(input.files) : [];
+      if (!files.length) return;
+      let ok = 0;
+      for (const file of files) {
+        try {
+          const dataUrl = await xhReadFileAsDataUrl(file);
+          const r = await apiCall('/xuhuo/image/upload', {
+            method: 'POST',
+            body: JSON.stringify({ dataUrl: dataUrl }),
+          });
+          const item = r && r.data && r.data.item;
+          if (item) {
+            xhImages.push(item);
+            ok += 1;
+          }
+        } catch (e) {
+          showToast('上传失败: ' + (e && e.message ? e.message : e), 'error');
+        }
+      }
+      if (input) input.value = '';
+      if (ok) await xhSaveNow();
+      xhRenderImages();
+    }
+
+    async function xhAddUrl() {
+      const input = xhEl('xhUrlInput');
+      const url = input ? String(input.value || '').trim() : '';
+      if (!/^https?:\/\/[^\s]+$/i.test(url)) {
+        showToast('请填写 http 或 https 开头的图片链接', 'error');
+        return;
+      }
+      if (xhImages.some(function (x) { return x.来源 === 'url' && x.值 === url; })) {
+        showToast('该链接已存在');
+        return;
+      }
+      xhImages.push({ id: 'tmp' + Date.now(), 来源: 'url', 值: url });
+      if (input) input.value = '';
+      await xhSaveNow();
+      xhRenderImages();
+    }
+
+    async function xhMoveImage(index, delta) {
+      const to = index + delta;
+      if (to < 0 || to >= xhImages.length) return;
+      const arr = xhImages.slice();
+      const tmp = arr[index];
+      arr[index] = arr[to];
+      arr[to] = tmp;
+      xhImages = arr;
+      await xhSaveNow();
+      xhRenderImages();
+    }
+
+    async function xhRemoveImage(index) {
+      const it = xhImages[index];
+      if (!it) return;
+      xhImages.splice(index, 1);
+      await xhSaveNow();
+      if (it.来源 === '本地' && it.值) {
+        try {
+          await apiCall('/xuhuo/image/delete', {
+            method: 'POST',
+            body: JSON.stringify({ names: [it.值] }),
+          });
+        } catch (_e) {
+          void 0;
+        }
+      }
+      xhRenderImages();
+    }
+
+    function xhCollectConfig() {
+      const base = xhConfig ? JSON.parse(JSON.stringify(xhConfig)) : {};
+      const gt = xhSplitTime(xhEl('xhGroupTime') ? xhEl('xhGroupTime').value : '') || { 时: 0, 分: 0 };
+      const pt = xhSplitTime(xhEl('xhPrivateTime') ? xhEl('xhPrivateTime').value : '') || { 时: 0, 分: 5 };
+      base.群聊 = {
+        启用: !!(xhEl('xhGroupEnable') && xhEl('xhGroupEnable').checked),
+        时: gt.时,
+        分: gt.分,
+        文案: (xhText.群聊 || []).slice(),
+      };
+      base.私聊 = {
+        启用: !!(xhEl('xhPrivateEnable') && xhEl('xhPrivateEnable').checked),
+        时: pt.时,
+        分: pt.分,
+        文案: (xhText.私聊 || []).slice(),
+      };
+      const fixedRaw = xhEl('xhImageFixed') ? String(xhEl('xhImageFixed').value || '') : '';
+      const fixed = fixedRaw.split(/[,，\s]+/).map(function (x) { return parseInt(x, 10); }).filter(function (x) { return Number.isFinite(x) && x > 0; });
+      base.图片 = {
+        启用: !!(xhEl('xhImageEnable') && xhEl('xhImageEnable').checked),
+        模式: xhEl('xhImageMode') ? xhEl('xhImageMode').value : '随机',
+        张数: Math.max(1, Math.min(30, parseInt(xhEl('xhImageCount') ? xhEl('xhImageCount').value : '1', 10) || 1)),
+        固定序号: fixed,
+        统一顺序: !!(xhEl('xhImageUnified') && xhEl('xhImageUnified').checked),
+        资源: xhImages.map(function (x) { return { id: x.id, 来源: x.来源, 值: x.值 }; }),
+      };
+      base.发送 = {
+        合并: !!(xhEl('xhMerge') && xhEl('xhMerge').checked),
+        文案策略: xhTextModeValue,
+        私聊回落群聊: !!(xhEl('xhPrivateFallback') && xhEl('xhPrivateFallback').checked),
+        消息间隔毫秒: (base.发送 && base.发送.消息间隔毫秒) || 600,
+      };
+      return base;
+    }
+
+    async function xhLoadTargets() {
+      const box = xhEl(xhScope === '群聊' ? 'xhListGroup' : 'xhListPrivate');
+      if (box) box.innerHTML = '<div class="xh-empty">加载中</div>';
+      try {
+        const r = await apiCall('/xuhuo/targets?scope=' + encodeURIComponent(xhScope));
+        xhTargets = (r && r.data && Array.isArray(r.data.list)) ? r.data.list : [];
+        xhRenderTargets();
+      } catch (e) {
+        if (box) box.innerHTML = '<div class="xh-empty">读取失败</div>';
+        showToast('读取列表失败: ' + (e && e.message ? e.message : e), 'error');
+      }
+    }
+
+    function xhAvatarUrl(scope, id) {
+      const safe = String(id || '').replace(/[^0-9]/g, '');
+      if (!safe) return '';
+      if (scope === '群聊') return 'https://p.qlogo.cn/gh/' + safe + '/' + safe + '/100/';
+      return 'https://q4.qlogo.cn/g?b=qq&nk=' + safe + '&s=100';
+    }
+
+    function xhRenderTargets() {
+      const box = xhEl(xhScope === '群聊' ? 'xhListGroup' : 'xhListPrivate');
+      const countEl = xhEl(xhScope === '群聊' ? 'xhCountGroup' : 'xhCountPrivate');
+      if (!box) return;
+      const onCount = xhTargets.filter(function (x) { return x.开启; }).length;
+      if (countEl) countEl.textContent = onCount + '/' + xhTargets.length;
+      const searchEl = xhEl(xhScope === '群聊' ? 'xhSearchGroup' : 'xhSearchPrivate');
+      const kw = String(searchEl ? searchEl.value : '').trim().toLowerCase();
+      const list = kw
+        ? xhTargets.filter(function (x) {
+            return String(x.name || '').toLowerCase().indexOf(kw) >= 0 || String(x.id).indexOf(kw) >= 0;
+          })
+        : xhTargets;
+      if (!list.length) {
+        box.innerHTML = '<div class="xh-empty">' + (xhTargets.length ? '没有匹配项' : '列表为空') + '</div>';
+        return;
+      }
+      box.innerHTML = list.map(function (t) {
+        const tagClass = t.今日 === '已' ? 'xh-tag xh-tag--ok' : (t.今日 === '失败' ? 'xh-tag xh-tag--fail' : 'xh-tag');
+        const tagText = t.今日 === '已' ? '已发' : (t.今日 === '失败' ? '失败' : '未发');
+        const avatar = xhAvatarUrl(xhScope, String(t.id));
+        const initial = String(t.name || t.id || '?').trim().charAt(0) || '?';
+        return '<div class="xh-item">'
+          + '<label class="toggle-switch" onpointerdown="xhItemPressStart(event, this)" onpointerup="xhItemPressEnd(event)" onpointerleave="xhItemPressEnd(event)" onpointercancel="xhItemPressEnd(event)">'
+          + '<input type="checkbox" data-id="' + escapeHtml(String(t.id)) + '" ' + (t.开启 ? 'checked' : '') + ' onchange="xhToggleTarget(\'' + escapeHtml(String(t.id)) + '\', this.checked)">'
+          + '<span class="toggle-slider"></span>'
+          + '</label>'
+          + '<span class="xh-item__avatar">'
+          + '<span class="xh-item__initial">' + escapeHtml(initial) + '</span>'
+          + '<img src="' + escapeHtml(avatar) + '" alt="" loading="lazy" onerror="this.remove()">'
+          + '</span>'
+          + '<span class="xh-item__main">'
+          + '<span class="xh-item__name">' + escapeHtml(String(t.name || t.id)) + '</span>'
+          + '<span class="xh-item__meta">' + escapeHtml(String(t.id)) + '</span>'
+          + '</span>'
+          + '<span class="' + tagClass + '">' + tagText + '</span>'
+          + '</div>';
+      }).join('');
+    }
+
+    function xhItemPressStart(_ev, el) {
+      const input = el ? el.querySelector('input[type="checkbox"]') : null;
+      if (!input) return;
+      if (xhPressTimer) {
+        clearTimeout(xhPressTimer);
+        xhPressTimer = null;
+      }
+      xhPressFired = false;
+      xhPressTarget = input.checked ? '开启' : '关闭';
+      xhPressTimer = setTimeout(function () {
+        xhPressFired = true;
+        xhIgnoreNext = {
+          id: String(input.getAttribute('data-id') || ''),
+          until: Date.now() + 1200,
+        };
+        xhTargetsAll(xhPressTarget === '开启');
+      }, 3000);
+    }
+
+    function xhItemPressEnd(ev) {
+      if (xhPressTimer) {
+        clearTimeout(xhPressTimer);
+        xhPressTimer = null;
+      }
+      if (xhPressFired && ev && ev.cancelable && typeof ev.preventDefault === 'function') {
+        ev.preventDefault();
+      }
+    }
+
+    async function xhToggleTarget(id, on) {
+      if (xhIgnoreNext && String(xhIgnoreNext.id) === String(id) && Date.now() <= xhIgnoreNext.until) {
+        xhIgnoreNext = null;
+        xhRenderTargets();
+        return;
+      }
+      try {
+        await apiCall('/xuhuo/targets', {
+          method: 'POST',
+          body: JSON.stringify({ scope: xhScope, ids: [id], value: on ? '开启' : '关闭' }),
+        });
+        const hit = xhTargets.find(function (x) { return String(x.id) === String(id); });
+        if (hit) hit.开启 = !!on;
+        xhRenderTargets();
+      } catch (e) {
+        showToast('保存失败: ' + (e && e.message ? e.message : e), 'error');
+        xhLoadTargets();
+      }
+    }
+
+    async function xhTargetsAll(on) {
+      if (!xhTargets.length) {
+        showToast('列表为空');
+        return;
+      }
+      const ids = xhTargets.map(function (x) { return String(x.id); });
+      try {
+        await apiCall('/xuhuo/targets', {
+          method: 'POST',
+          body: JSON.stringify({ scope: xhScope, ids: ids, value: on ? '开启' : '关闭' }),
+        });
+        xhTargets.forEach(function (x) { x.开启 = !!on; });
+        xhRenderTargets();
+      } catch (e) {
+        showToast('操作失败: ' + (e && e.message ? e.message : e), 'error');
+      }
+    }
+
     let globalBanPunish = { 禁言: false, 撤回: false, 踢出: false, 禁言时长: 600, 踢出方式: '黑踢' };
     let globalBanEnableMap = {};
     let globalBanFollowMap = {};
@@ -19397,7 +20383,9 @@
     let mkSharpBgCacheMax = '';
     let mkSharpSvgDirectOn = true;
     let mkMediaInlineMb = '';
-    let mkMediaFetchConcurrency = '';
+    let mkMediaImageInlineKb = '';
+    let mkLargeImagePolicy = '原图优先';
+    let mkProtocolKeywords = '';
     let mkProtocolLocalReadOn = true;
     let sharpBgEffectsSaveTimer = null;
 
@@ -19516,18 +20504,59 @@
       saveAdvancedRenderSettings();
     }
 
-    // 并发下载数已迁移到「视频解析」页（syncMediaFetchConcurrencyInput 保留兼容旧引用），
-    // 这里只维护状态变量，输入框与保存都在视频解析页。
-    function syncMediaFetchConcurrencyInput() {
-      const input = document.getElementById('mediaFetchConcurrencyInput');
+    function syncMediaImageInlineKbInput() {
+      const input = document.getElementById('mediaImageInlineKbInput');
       if (!input) return;
-      input.value = mkMediaFetchConcurrency || '';
+      input.value = mkMediaImageInlineKb || '';
+      input.disabled = !renderPerfEditable();
     }
 
-    function onMediaFetchConcurrencyInput() {
-      const input = document.getElementById('mediaFetchConcurrencyInput');
+    function onMediaImageInlineKbInput() {
+      if (!renderPerfEditable()) return;
+      const input = document.getElementById('mediaImageInlineKbInput');
       if (!input) return;
-      mkMediaFetchConcurrency = normalizeIntOrEmpty(input.value, 1, 8);
+      mkMediaImageInlineKb = normalizeIntOrEmpty(input.value, 64, 8192);
+      saveAdvancedRenderSettings();
+    }
+
+    function syncProtocolKeywordsInput() {
+      const input = document.getElementById('protocolKeywordsInput');
+      if (!input) return;
+      input.value = mkProtocolKeywords || '';
+      input.disabled = !renderPerfEditable();
+    }
+    function onProtocolKeywordsInput() {
+      if (!renderPerfEditable()) return;
+      const input = document.getElementById('protocolKeywordsInput');
+      if (!input) return;
+      mkProtocolKeywords = String(input.value || '').trim().slice(0, 120);
+      saveAdvancedRenderSettings();
+    }
+
+    const MK_LARGE_IMAGE_POLICIES = ['原图优先', '压缩优先', '不压缩'];
+    function normalizeLargeImagePolicy(raw) {
+      const s = String(raw ?? '').trim();
+      if (s === '压缩优先' || s.toLowerCase() === 'compress-first') return '压缩优先';
+      if (s === '不压缩' || s === '原图直发' || s.toLowerCase() === 'never-compress') return '不压缩';
+      return '原图优先';
+    }
+    function syncLargeImagePolicyRowUi() {
+      const btn = document.getElementById('largeImagePolicyBtn');
+      const row = document.getElementById('largeImagePolicyRow');
+      const editable = renderPerfEditable();
+      if (btn) {
+        btn.textContent = mkLargeImagePolicy;
+        btn.classList.toggle('is-on', mkLargeImagePolicy !== '不压缩');
+        btn.disabled = !editable;
+      }
+      if (row) row.classList.toggle('is-on', mkLargeImagePolicy === '原图优先');
+    }
+    function cycleLargeImagePolicy() {
+      if (!renderPerfEditable()) return;
+      const i = MK_LARGE_IMAGE_POLICIES.indexOf(mkLargeImagePolicy);
+      mkLargeImagePolicy = MK_LARGE_IMAGE_POLICIES[(i + 1) % MK_LARGE_IMAGE_POLICIES.length];
+      syncLargeImagePolicyRowUi();
+      saveAdvancedRenderSettings();
     }
 
     /** 开关类配置：'关闭'/'false'/'0' 视为关，其余（含空）按默认值 */
@@ -19763,7 +20792,9 @@
         mkSharpBgCacheMax = normalizeIntOrEmpty(config.背景缓存数量 ?? '', 1, 32);
         mkSharpSvgDirectOn = String(config.SVG直传 ?? '').trim().toLowerCase() !== '关闭';
         mkMediaInlineMb = normalizeIntOrEmpty(config.媒体内联上限 ?? '', 0, 64);
-        mkMediaFetchConcurrency = normalizeIntOrEmpty(config.并发下载数 ?? '', 1, 8);
+        mkMediaImageInlineKb = normalizeIntOrEmpty(config.图片内联上限KB ?? '', 64, 8192);
+        mkLargeImagePolicy = normalizeLargeImagePolicy(config.大图内联策略);
+        mkProtocolKeywords = String(config.协议框架进程关键字 ?? '').trim();
         mkProtocolLocalReadOn = normalizeBoolOn(config.协议端读本地文件, true);
         syncImageRenderRowUi();
         syncRenderModePillUi();
@@ -19773,7 +20804,6 @@
         syncSharpJobTimeoutInput();
         syncSharpBgCacheRowUi();
         syncSharpSvgDirectRowUi();
-        syncMediaFetchConcurrencyInput();
         syncSharpDepsPanelVisibility();
         syncRenderGroupVisibility();
         refreshSharpDepsStatus(false);
@@ -19793,7 +20823,9 @@
       const bgCacheRow = document.getElementById('sharpBgCacheRow');
       const svgDirectRow = document.getElementById('sharpSvgDirectRow');
       const mediaInlineRow = document.getElementById('mediaInlineRow');
-      const mediaFetchConcurrencyRow = document.getElementById('mediaFetchConcurrencyRow');
+      const mediaImageInlineKbRow = document.getElementById('mediaImageInlineKbRow');
+      const largeImagePolicyRow = document.getElementById('largeImagePolicyRow');
+      const protocolKeywordsRow = document.getElementById('protocolKeywordsRow');
       const protocolLocalReadRow = document.getElementById('protocolLocalReadRow');
       const show = mkRenderMode === 'sharp';
       if (panel) panel.style.display = show ? '' : 'none';
@@ -19807,7 +20839,9 @@
       if (svgDirectRow) svgDirectRow.style.display = show ? '' : 'none';
       // 媒体下发方式跟渲染器无关，html 模式下也要能改（容器部署排查就靠它）
       if (mediaInlineRow) mediaInlineRow.style.display = '';
-      if (mediaFetchConcurrencyRow) mediaFetchConcurrencyRow.style.display = '';
+      if (mediaImageInlineKbRow) mediaImageInlineKbRow.style.display = '';
+      if (largeImagePolicyRow) largeImagePolicyRow.style.display = '';
+      if (protocolKeywordsRow) protocolKeywordsRow.style.display = '';
       if (protocolLocalReadRow) protocolLocalReadRow.style.display = '';
       syncRenderConcurrencyInput();
       syncSharpPngLevelInput();
@@ -19815,7 +20849,9 @@
       syncSharpBgCacheRowUi();
       syncSharpSvgDirectRowUi();
       syncMediaInlineInput();
-      syncMediaFetchConcurrencyInput();
+      syncMediaImageInlineKbInput();
+      syncLargeImagePolicyRowUi();
+      syncProtocolKeywordsInput();
       syncProtocolLocalReadRowUi();
       // 行的显隐刚变过，重新判断哪些分组该收起来
       syncRenderGroupVisibility();
@@ -20009,7 +21045,9 @@
             背景缓存数量: mkSharpBgCacheMax || '',
             SVG直传: mkSharpSvgDirectOn ? '开启' : '关闭',
             媒体内联上限: mkMediaInlineMb || '',
-            // 并发下载数已迁移到「视频解析」页保存，这里不再带（避免两处互相覆盖）
+            图片内联上限KB: mkMediaImageInlineKb || '',
+            大图内联策略: mkLargeImagePolicy,
+            协议框架进程关键字: mkProtocolKeywords,
             协议端读本地文件: mkProtocolLocalReadOn,
           }),
         });
@@ -20187,7 +21225,6 @@
         document.getElementById('selfTrigger').checked = config.自触开关 ?? false;
         document.getElementById('assistantMode').checked = config.助手模式 ?? false;
         document.getElementById('deepEntertainmentPath').value = config.深度娱乐路径 ?? '筱筱吖/娱乐系统/深度娱乐/娱乐模式.json';
-        // 下载并发路数等解析设置已迁移到「视频解析」页（loadVideoParseConfig）
 
         // 上传节点择优状态（独立接口，失败不影响其余设置项）
         loadNetOptimizeStatus();
@@ -20269,7 +21306,6 @@
           自触开关: selfTrigger,
           助手模式: assistantMode,
           深度娱乐路径: deepEntertainmentPath
-          // 下载并发路数等解析设置已迁移到「视频解析」页保存
         };
 
         debug('[SAVE] 保存设置: ' + JSON.stringify(config));
@@ -20282,299 +21318,6 @@
       } catch (error) {
         debug('[ERROR] 保存设置失败: ' + error.message);
         showToast('保存设置失败: ' + error.message, 'error');
-      }
-    }
-
-    // ================== 视频解析页 ==================
-    let videoParseCookies = {};
-    let videoParseSettings = {};
-    let videoParseLoaded = false;
-
-    const VIDEO_PARSE_PLATFORMS = ['哔哩哔哩', '抖音', '小红书', '快手'];
-
-    const VP_COOKIE_HINTS = {
-      '哔哩哔哩': '可不填。带上 SESSDATA 可解锁更高清晰度；也可用于风控时兜底',
-      '抖音': '可不填。解析内置游客 ttwid 已够用；频繁风控时建议配登录 Cookie（含 sessionid）',
-      '小红书': '强烈建议填。不填时多数笔记会撞登录墙，解析直接失败',
-      '快手': '可不填。未填时自动用游客设备号；被风控时建议配网页版 Cookie（含 did）'
-    };
-
-    function vpEsc(s) { return escapeHtml(String(s ?? '')); }
-
-    function vpFormatTime(ts) {
-      if (!ts) return '从未更新';
-      const d = new Date(ts * 1000);
-      const pad = n => String(n).padStart(2, '0');
-      return `${d.getMonth() + 1}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
-    }
-
-    const VP_QR_HINTS = {
-      '哔哩哔哩': '支持扫码登录（手机 B 站 App 扫码确认）',
-      '抖音': '支持扫码登录（手机抖音 App 扫码确认，接口若失效请改用手动粘贴）',
-      '小红书': '支持扫码登录（手机小红书 App 扫码确认）',
-      '快手': '暂不支持扫码，请粘贴网页版 Cookie'
-    };
-
-    function renderVideoParseCookieList() {
-      const box = document.getElementById('videoParseCookieList');
-      if (!box) return;
-      box.innerHTML = VIDEO_PARSE_PLATFORMS.map(p => {
-        const info = videoParseCookies[p] || { cookie: '', hasSession: false, updatedAt: 0 };
-        const len = (info.cookie || '').length;
-        const badge = !len
-          ? '<span class="mk-netopt-peer__tag" style="background:color-mix(in srgb,var(--mk-text-muted,gray) 14%,transparent);">未配置</span>'
-          : info.hasSession
-            ? '<span class="mk-netopt-peer__tag" style="background:color-mix(in srgb,#22c55e 18%,transparent);color:#16a34a;">含会话键</span>'
-            : '<span class="mk-netopt-peer__tag" style="background:color-mix(in srgb,#f59e0b 20%,transparent);color:#b45309;">无会话键</span>';
-        return `
-        <div class="vp-card" data-platform="${vpEsc(p)}">
-          <div class="vp-card__head">
-            <span class="vp-card__name">${vpEsc(p)}</span>${badge}
-            <span class="vp-card__meta">${len ? len + ' 字符 · ' : ''}更新于 ${vpFormatTime(info.updatedAt)}</span>
-          </div>
-          <div class="vp-card__body">
-            <textarea id="vpCookie_${vpEsc(p)}" class="mk-input" rows="2" spellcheck="false"
-              placeholder="扫码登录可自动填入；也可手动粘贴 ${vpEsc(p)} 网页版 Cookie 整串" style="font-family:var(--font-mono,monospace);font-size:12px;resize:vertical;">${vpEsc(info.cookie)}</textarea>
-            <p class="mk-hint">${vpEsc(VP_QR_HINTS[p] || VP_COOKIE_HINTS[p] || '')}</p>
-            <div class="mk-netopt-actions">
-              <button type="button" class="mk-btn mk-btn--primary mk-btn--sm" onclick="startVpQrLogin('${vpEsc(p)}')">扫码登录</button>
-              <button type="button" class="mk-btn mk-btn--ghost mk-btn--sm" onclick="saveVideoParseCookie('${vpEsc(p)}')">保存</button>
-              <button type="button" class="mk-btn mk-btn--ghost mk-btn--sm" onclick="refreshVideoParseCookie('${vpEsc(p)}')">续期</button>
-            </div>
-            <div id="vpQrBox_${vpEsc(p)}" style="display:none;">
-              <div style="display:flex;gap:12px;align-items:flex-start;flex-wrap:wrap;">
-                <div id="vpQrImg_${vpEsc(p)}" style="background:#fff;padding:8px;border-radius:8px;width:184px;min-height:184px;display:flex;align-items:center;justify-content:center;"></div>
-                <p class="mk-hint" id="vpQrStatus_${vpEsc(p)}" style="flex:1;min-width:140px;margin:0;">正在生成二维码…</p>
-              </div>
-            </div>
-          </div>
-        </div>`;
-      }).join('');
-    }
-
-    // ================== 视频解析页：分类导航（滚动定位式） ==================
-    // 三个区块全部常驻、连续填满，避免隐藏式 pane 在短内容子页下方露出大片空白。
-    // Tab 点击 = 平滑滚动到对应区块；面板滚动时 Tab 高亮跟随。
-    const VP_TABS = ['login', 'download', 'test'];
-
-    function vpSetActiveTab(tab) {
-      for (const k of VP_TABS) {
-        const btn = document.getElementById('vpTabBtn-' + k);
-        if (btn) {
-          btn.classList.toggle('mk-tab-pill--active', k === tab);
-          btn.setAttribute('aria-selected', k === tab ? 'true' : 'false');
-        }
-      }
-    }
-
-    function switchVpTab(tab) {
-      vpSetActiveTab(tab);
-      const sec = document.getElementById('vpSec-' + tab);
-      if (sec) sec.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }
-
-    function initVpScrollSpy() {
-      const body = document.querySelector('#page-video-parse .mk-panel-body');
-      if (!body || body.dataset.vpSpy === '1') return;
-      body.dataset.vpSpy = '1';
-      body.addEventListener('scroll', () => {
-        const bodyTop = body.getBoundingClientRect().top;
-        let cur = VP_TABS[0];
-        for (const k of VP_TABS) {
-          const el = document.getElementById('vpSec-' + k);
-          if (el && el.getBoundingClientRect().top - bodyTop <= 64) cur = k;
-        }
-        vpSetActiveTab(cur);
-      }, { passive: true });
-    }
-
-    // ================== 视频解析页：扫码登录 ==================
-    let vpQr = {};
-
-    function vpLoadQrLib(cb) {
-      if (window.QRCode) return cb(true);
-      const s = document.createElement('script');
-      s.src = 'https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js';
-      s.onload = () => cb(true);
-      s.onerror = () => cb(false);
-      document.head.appendChild(s);
-    }
-
-    function vpRenderQr(platform, content) {
-      const el = document.getElementById('vpQrImg_' + platform);
-      if (!el) return;
-      el.innerHTML = '';
-      try {
-        new window.QRCode(el, { text: content, width: 168, height: 168, correctLevel: window.QRCode.CorrectLevel.M });
-      } catch {
-        el.innerHTML = '<code style="word-break:break-all;font-size:10px;">' + vpEsc(content) + '</code>';
-      }
-    }
-
-    async function startVpQrLogin(platform) {
-      const box = document.getElementById('vpQrBox_' + platform);
-      const statusEl = document.getElementById('vpQrStatus_' + platform);
-      if (box) box.style.display = '';
-      if (statusEl) statusEl.textContent = '正在生成二维码…';
-      try {
-        const r = await apiCall('/video-parse/login/start', {
-          method: 'POST', body: JSON.stringify({ platform }), timeoutMs: 20000
-        });
-        if (r.code !== 0) {
-          if (statusEl) statusEl.textContent = r.message || '生成失败';
-          return;
-        }
-        vpLoadQrLib((ok) => {
-          if (ok) vpRenderQr(platform, r.data.qr);
-          else if (statusEl) statusEl.textContent = '二维码组件加载失败，请手动粘贴 Cookie';
-        });
-        if (vpQr[platform]?.timer) clearInterval(vpQr[platform].timer);
-        const st = { token: r.data.token, timer: null, busy: false };
-        st.timer = setInterval(() => vpPollQr(platform), 2000);
-        vpQr[platform] = st;
-      } catch (error) {
-        if (statusEl) statusEl.textContent = '发起失败: ' + error.message;
-      }
-    }
-
-    async function vpPollQr(platform) {
-      const st = vpQr[platform];
-      if (!st || st.busy) return;
-      st.busy = true;
-      try {
-        const r = await apiCall('/video-parse/login/poll', {
-          method: 'POST', body: JSON.stringify({ platform, token: st.token }), timeoutMs: 15000
-        });
-        const statusEl = document.getElementById('vpQrStatus_' + platform);
-        if (statusEl) statusEl.textContent = r.message || '';
-        if (r.data?.status === 'confirmed') {
-          clearInterval(st.timer);
-          delete vpQr[platform];
-          showToast(platform + ' 扫码登录成功，Cookie 已自动保存', 'success');
-          await loadVideoParseConfig(true);
-          const box = document.getElementById('vpQrBox_' + platform);
-          if (box) box.style.display = 'none';
-        } else if (r.data?.status === 'expired') {
-          clearInterval(st.timer);
-          delete vpQr[platform];
-        }
-      } catch {
-        // 网络抖动：忽略本轮，下一轮继续
-      } finally {
-        st.busy = false;
-      }
-    }
-
-    async function loadVideoParseConfig(force) {
-      try {
-        const r = await apiCall('/video-parse/config');
-        const data = r.data || {};
-        videoParseCookies = data.cookies || {};
-        videoParseSettings = data.settings || {};
-        renderVideoParseCookieList();
-
-        const 并发Raw = Number(videoParseSettings['下载并发路数']);
-        const 并发Input = document.getElementById('downloadParallelInput');
-        if (并发Input) 并发Input.value = (Number.isFinite(并发Raw) && 并发Raw >= 1) ? Math.min(64, Math.round(并发Raw)) : 16;
-
-        const fetchRaw = Number(videoParseSettings['并发下载数']);
-        const fetchInput = document.getElementById('mediaFetchConcurrencyInput');
-        if (fetchInput) fetchInput.value = (Number.isFinite(fetchRaw) && fetchRaw >= 1) ? Math.min(8, Math.round(fetchRaw)) : '';
-
-        mkMediaFetchConcurrency = videoParseSettings['并发下载数'] ?? '';
-        syncMediaFetchConcurrencyInput();
-
-        const on = videoParseSettings['内联图片落盘'] !== false;
-        const btn = document.getElementById('inlineMaterializeBtn');
-        if (btn) { btn.textContent = on ? '已开启' : '已关闭'; btn.dataset.on = on ? '1' : '0'; }
-
-        videoParseLoaded = true;
-        initVpScrollSpy();
-      } catch (error) {
-        debug('[ERROR] 加载视频解析配置失败: ' + error.message);
-        showToast('加载视频解析配置失败: ' + error.message, 'error');
-      }
-    }
-
-    async function saveVideoParseCookie(platform) {
-      const input = document.getElementById('vpCookie_' + platform);
-      if (!input) return;
-      try {
-        const r = await apiCall('/video-parse/cookie', {
-          method: 'POST', body: JSON.stringify({ platform, cookie: input.value.trim() }), timeoutMs: 20000
-        });
-        showToast(r.message || '已保存', 'success');
-        await loadVideoParseConfig(true);
-      } catch (error) {
-        showToast('保存失败: ' + error.message, 'error');
-      }
-    }
-
-    async function refreshVideoParseCookie(platform) {
-      const btns = document.querySelectorAll('#videoParseCookieList .mk-btn');
-      btns.forEach(b => { b.disabled = true; });
-      try {
-        const r = await apiCall('/video-parse/refresh', {
-          method: 'POST', body: JSON.stringify({ platform }), timeoutMs: 30000
-        });
-        showToast(r.message || (r.code === 0 ? '续期完成' : '续期失败'), r.code === 0 ? 'success' : 'error');
-        await loadVideoParseConfig(true);
-      } catch (error) {
-        showToast('续期失败: ' + error.message, 'error');
-      } finally {
-        btns.forEach(b => { b.disabled = false; });
-      }
-    }
-
-    async function saveVideoParseSettings() {
-      try {
-        const 并发Raw = Number(document.getElementById('downloadParallelInput')?.value);
-        const 并发 = (Number.isFinite(并发Raw) && 并发Raw >= 1) ? Math.max(1, Math.min(64, Math.round(并发Raw))) : 16;
-        const fetchVal = document.getElementById('mediaFetchConcurrencyInput')?.value ?? '';
-        const inlineOn = document.getElementById('inlineMaterializeBtn')?.dataset.on !== '0';
-        await apiCall('/config', {
-          method: 'POST',
-          body: JSON.stringify({
-            下载并发路数: 并发,
-            并发下载数: fetchVal,
-            内联图片落盘: inlineOn ? '开启' : '关闭'
-          })
-        });
-        debug('[OK] 视频解析设置已保存');
-      } catch (error) {
-        debug('[ERROR] 保存视频解析设置失败: ' + error.message);
-        showToast('保存失败: ' + error.message, 'error');
-      }
-    }
-
-    function toggleInlineMaterialize() {
-      const btn = document.getElementById('inlineMaterializeBtn');
-      if (!btn) return;
-      btn.dataset.on = btn.dataset.on === '0' ? '1' : '0';
-      btn.textContent = btn.dataset.on === '0' ? '已关闭' : '已开启';
-      saveVideoParseSettings();
-    }
-
-    // 分片并发路数在输入后自动保存（与渲染设置的即时保存习惯一致）
-    function onVideoParseParallelInput() { saveVideoParseSettings(); }
-
-    async function runVideoParseTest() {
-      const platform = document.getElementById('videoParseTestPlatform')?.value || '';
-      const url = document.getElementById('videoParseTestUrl')?.value?.trim() || '';
-      const out = document.getElementById('videoParseTestResult');
-      const btn = document.getElementById('videoParseTestBtn');
-      if (!url) { showToast('请先粘贴链接', 'info'); return; }
-      if (out) out.textContent = '解析中…';
-      if (btn) btn.disabled = true;
-      try {
-        const r = await apiCall('/video-parse/test', {
-          method: 'POST', body: JSON.stringify({ platform, url }), timeoutMs: 60000
-        });
-        if (out) out.textContent = (r.code === 0 ? '✓ ' : '✗ ') + (r.message || '完成');
-      } catch (error) {
-        if (out) out.textContent = '✗ 测试失败: ' + error.message;
-      } finally {
-        if (btn) btn.disabled = false;
       }
     }
 

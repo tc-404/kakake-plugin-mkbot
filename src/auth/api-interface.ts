@@ -507,7 +507,7 @@ async function handleFortuneRenderError(
     error: unknown
 ): Promise<void> {
     const { readB, resolveImageForCq, logger } = d;
-    logger.error('[测试图片] 错误:', error);
+    logger.error('[今日运势] 渲染异常:', error);
 
     const skipRawFallback = readB('config.json', '今日运势失败不发原图', false);
     const fallbackImage = fortuneNetUrl ? resolveImageForCq(fortuneNetUrl) : '';
@@ -528,7 +528,7 @@ async function handleFortuneRenderError(
         return;
     }
 
-    await 发消息(event, [段_引用(event.message_id), 段_文本(`测试图片出错: ${message}`)]);
+    await 发消息(event, [段_引用(event.message_id), 段_文本(`运势卡片出错: ${message}`)]);
 }
 
 async function loadFortuneSelection(

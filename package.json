@@ -1,7 +1,7 @@
 {
   "name": "napcat-plugin-mkbot",
   "plugin": "MKbot",
-  "version": "2.3.12",
+  "version": "2.3.13",
   "type": "module",
   "main": "index.mjs",
   "description": "MKbot - 综合娱乐和群管",
@@ -45,6 +45,8 @@
     "watch": "vite build --watch",
     "typecheck": "tsc --noEmit",
     "verify:media-path": "node scripts/verify-media-path.mjs",
+    "verify:status-protocol": "node scripts/verify-status-protocol.mjs",
+    "verify:status-parallel": "node scripts/verify-status-parallel.mjs",
     "verify:dy-parse": "node scripts/verify-dy-parse.mjs",
     "verify:download-timeout": "node scripts/verify-download-timeout.mjs",
     "verify:list-cache": "node scripts/verify-list-cache.mjs",
